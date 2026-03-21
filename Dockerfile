@@ -30,8 +30,13 @@ ARG INSTALL_DIFFPIPE=1
 ARG INSTALL_AI_TOOLKIT=1
 ARG INSTALL_AI_TOOLKIT_UI=1
 ARG INSTALL_COPILOT_CLI=1
-ARG COPILOT_CLI_VERSION=
-ARG AI_TOOLKIT_REF=
+ARG COPILOT_CLI_VERSION=1.0.10
+ARG CODE_SERVER_VERSION=4.112.0
+ARG JUPYTERLAB_VERSION=4.5.6
+ARG IPYWIDGETS_VERSION=8.1.8
+ARG COMFYUI_REF=v0.18.0
+ARG COMFYUI_MANAGER_REF=4.1b6
+ARG AI_TOOLKIT_REF=35b1cde3cb7b0151a51bf8547bab0931fd57d72d
 ARG AI_TOOLKIT_DIFFUSERS_VERSION=0.36.0
 
 ARG TORCH_VERSION=2.6.0
@@ -47,7 +52,7 @@ ARG INVOKE_TORCHAUDIO_VERSION=2.7.0
 ARG INVOKE_TORCH_INDEX_URL=https://download.pytorch.org/whl/cu126
 ARG INVOKEAI_VERSION=6.11.1
 ARG CUDA_NVCC_PKG=cuda-nvcc-12-4
-ARG CROC_VERSION=10.3.1
+ARG CROC_VERSION=10.4.2
 
 # ----- base deps -----
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -109,7 +114,7 @@ RUN mkdir -p /workspace/home/root/.cache/pip /workspace/home/root/.fonts
 
 
 # ----- code-server -----
-RUN curl -fsSL https://code-server.dev/install.sh | sh
+RUN curl -fsSL https://code-server.dev/install.sh | VERSION="${CODE_SERVER_VERSION}" sh
 
 # ----- GitHub Copilot CLI (optional) -----
 # Installs the `copilot` binary. Auth/config is persisted under /workspace by the sidecar at runtime.
@@ -130,7 +135,9 @@ RUN set -eux; \
 RUN set -eux; \
     python -m venv /opt/venvs/tools; \
     /opt/venvs/tools/bin/pip install --upgrade pip setuptools wheel; \
-    /opt/venvs/tools/bin/pip install --no-cache-dir jupyterlab ipywidgets
+    /opt/venvs/tools/bin/pip install --no-cache-dir \
+      "jupyterlab==${JUPYTERLAB_VERSION}" \
+      "ipywidgets==${IPYWIDGETS_VERSION}"
 
 # ----- venv: core -----
 RUN set -eux; \
@@ -211,7 +218,15 @@ RUN /opt/venvs/core/bin/pip install --no-cache-dir \
 # ----- ComfyUI + Custom Nodes -----
 RUN if [ "${INSTALL_COMFY}" = "1" ]; then \
       set -eux && \
-      git clone --depth 1 https://github.com/comfyanonymous/ComfyUI.git /opt/pilot/repos/ComfyUI && \
+      git clone --depth 1 https://github.com/Comfy-Org/ComfyUI.git /opt/pilot/repos/ComfyUI && \
+      if [ -n "${COMFYUI_REF}" ]; then \
+        if git -C /opt/pilot/repos/ComfyUI rev-parse -q --verify "${COMFYUI_REF}^{commit}" >/dev/null; then \
+          git -C /opt/pilot/repos/ComfyUI checkout "${COMFYUI_REF}"; \
+        else \
+          git -C /opt/pilot/repos/ComfyUI fetch --depth 1 origin "${COMFYUI_REF}" && \
+          git -C /opt/pilot/repos/ComfyUI checkout FETCH_HEAD; \
+        fi; \
+      fi && \
       \
       # Filter out packages that must NOT be overridden in core
       grep -v -E '^(torch|torchvision|torchaudio|xformers|triton|bitsandbytes|numpy|pillow|Pillow|diffusers|transformers|peft|huggingface-hub|accelerate)' \
@@ -226,6 +241,14 @@ RUN if [ "${INSTALL_COMFY}" = "1" ]; then \
       mkdir -p /opt/pilot/repos/ComfyUI/custom_nodes && \
       git clone --depth 1 https://github.com/ltdrdata/ComfyUI-Manager.git \
         /opt/pilot/repos/ComfyUI/custom_nodes/ComfyUI-Manager && \
+      if [ -n "${COMFYUI_MANAGER_REF}" ]; then \
+        if git -C /opt/pilot/repos/ComfyUI/custom_nodes/ComfyUI-Manager rev-parse -q --verify "${COMFYUI_MANAGER_REF}^{commit}" >/dev/null; then \
+          git -C /opt/pilot/repos/ComfyUI/custom_nodes/ComfyUI-Manager checkout "${COMFYUI_MANAGER_REF}"; \
+        else \
+          git -C /opt/pilot/repos/ComfyUI/custom_nodes/ComfyUI-Manager fetch --depth 1 origin "${COMFYUI_MANAGER_REF}" && \
+          git -C /opt/pilot/repos/ComfyUI/custom_nodes/ComfyUI-Manager checkout FETCH_HEAD; \
+        fi; \
+      fi && \
       git clone --depth 1 https://github.com/romandev-codex/ComfyUI-Downloader.git \
         /opt/pilot/repos/ComfyUI/custom_nodes/ComfyUI-Downloader && \
       \
@@ -319,8 +342,12 @@ RUN if [ "${INSTALL_AI_TOOLKIT}" = "1" ] && [ "${INSTALL_INVOKE}" = "1" ]; then 
       set -eux && \
       git clone --depth 1 https://github.com/ostris/ai-toolkit.git /opt/pilot/repos/ai-toolkit && \
       if [ -n "${AI_TOOLKIT_REF}" ]; then \
-        git -C /opt/pilot/repos/ai-toolkit fetch --depth 1 origin "${AI_TOOLKIT_REF}" && \
-        git -C /opt/pilot/repos/ai-toolkit checkout "${AI_TOOLKIT_REF}"; \
+        if git -C /opt/pilot/repos/ai-toolkit rev-parse -q --verify "${AI_TOOLKIT_REF}^{commit}" >/dev/null; then \
+          git -C /opt/pilot/repos/ai-toolkit checkout "${AI_TOOLKIT_REF}"; \
+        else \
+          git -C /opt/pilot/repos/ai-toolkit fetch --depth 1 origin "${AI_TOOLKIT_REF}" && \
+          git -C /opt/pilot/repos/ai-toolkit checkout FETCH_HEAD; \
+        fi; \
       fi && \
       \
       # AI Toolkit may ship built-in extensions that require newer Diffusers than InvokeAI allows.

@@ -63,6 +63,13 @@ Stage 5: Final Image
 #### Core Build Arguments
 ```dockerfile
 # Version control
+ARG COPILOT_CLI_VERSION=1.0.10
+ARG CODE_SERVER_VERSION=4.112.0
+ARG JUPYTERLAB_VERSION=4.5.6
+ARG IPYWIDGETS_VERSION=8.1.8
+ARG COMFYUI_REF=v0.18.0
+ARG COMFYUI_MANAGER_REF=4.1b6
+ARG AI_TOOLKIT_REF=35b1cde3cb7b0151a51bf8547bab0931fd57d72d
 ARG TORCH_VERSION=2.6.0
 ARG TRANSFORMERS_VERSION=4.44.2
 ARG INVOKEAI_VERSION=6.11.1
@@ -503,6 +510,13 @@ build-multi:
 # .env.build
 TORCH_VERSION=2.6.0
 TRANSFORMERS_VERSION=4.44.2
+COPILOT_CLI_VERSION=1.0.10
+CODE_SERVER_VERSION=4.112.0
+JUPYTERLAB_VERSION=4.5.6
+IPYWIDGETS_VERSION=8.1.8
+COMFYUI_REF=v0.18.0
+COMFYUI_MANAGER_REF=4.1b6
+AI_TOOLKIT_REF=35b1cde3cb7b0151a51bf8547bab0931fd57d72d
 INVOKEAI_VERSION=6.11.1
 BUILD_DATE=$(date -u +'%Y-%m-%dT%H:%M:%SZ')
 VCS_REF=$(git rev-parse --short HEAD)
@@ -523,6 +537,13 @@ source .env.build
 docker build \
   --build-arg TORCH_VERSION=$TORCH_VERSION \
   --build-arg TRANSFORMERS_VERSION=$TRANSFORMERS_VERSION \
+  --build-arg COPILOT_CLI_VERSION=$COPILOT_CLI_VERSION \
+  --build-arg CODE_SERVER_VERSION=$CODE_SERVER_VERSION \
+  --build-arg JUPYTERLAB_VERSION=$JUPYTERLAB_VERSION \
+  --build-arg IPYWIDGETS_VERSION=$IPYWIDGETS_VERSION \
+  --build-arg COMFYUI_REF=$COMFYUI_REF \
+  --build-arg COMFYUI_MANAGER_REF=$COMFYUI_MANAGER_REF \
+  --build-arg AI_TOOLKIT_REF=$AI_TOOLKIT_REF \
   --build-arg INVOKEAI_VERSION=$INVOKEAI_VERSION \
   --build-arg BUILD_DATE=$BUILD_DATE \
   --build-arg VCS_REF=$VCS_REF \
@@ -694,5 +715,3 @@ docker run --rm -it --pid=host lora-pilot:latest \
 ## 📝 Feedback
 
 Was this helpful? [Suggest improvements on GitHub Discussions](https://github.com/notri1/lora-pilot/discussions/categories/documentation-feedback)
-
-

@@ -1,3 +1,16 @@
+v2.3
+
+- Docker/build dependency pinning refresh:
+  - pinned ComfyUI to `v0.18.0` and switched clone source to `Comfy-Org/ComfyUI`
+  - pinned ComfyUI-Manager to `4.1b6`
+  - pinned AI Toolkit to commit `35b1cde3cb7b0151a51bf8547bab0931fd57d72d`
+  - kept InvokeAI on latest stable `6.11.1` (no bump; prerelease ignored on purpose)
+  - pinned GitHub Copilot CLI to `1.0.10`
+  - pinned code-server to `4.112.0`
+  - pinned JupyterLab to `4.5.6` and ipywidgets to `8.1.8`
+  - bumped croc to `10.4.2`
+  - exposed new build args/defaults in `Dockerfile`, `build.env.example`, `Makefile`, and build docs
+
 v2.2
 
 - Added MediaPilot (Image manager for stable diffusion tools with some nice features - https://github.com/vavo/MediaPilot) as a built-in ControlPilot app (single-port embed):
