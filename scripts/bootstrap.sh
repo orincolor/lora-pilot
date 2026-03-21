@@ -7,6 +7,8 @@ if [ -f /opt/pilot/config/env.defaults ]; then
 fi
 
 WORKSPACE_ROOT="${WORKSPACE_ROOT:-/workspace}"
+SUPERVISOR_CONF="${SUPERVISOR_CONFIG_PATH:-/etc/supervisor/supervisord.conf}"
+SERVICE_AUTOSTART_CONFIG_FILE="${SERVICE_AUTOSTART_CONFIG_PATH:-$WORKSPACE_ROOT/config/service-autostart.toml}"
 
 upsert_env_var() {
   local file="$1"
@@ -239,6 +241,13 @@ if [ -n "${HF_TOKEN:-}" ]; then
 fi
 
 chmod 600 "$SECRETS_FILE" 2>/dev/null || true
+
+if [ -f /opt/pilot/service-autostart-apply.py ] && [ -f "$SUPERVISOR_CONF" ]; then
+  /opt/venvs/core/bin/python /opt/pilot/service-autostart-apply.py \
+    --supervisor-conf "$SUPERVISOR_CONF" \
+    --state-file "$SERVICE_AUTOSTART_CONFIG_FILE" \
+    || echo "Service autostart apply failed; continuing bootstrap"
+fi
 
 SERVICE_UPDATES_BOOT_RECONCILE="${SERVICE_UPDATES_BOOT_RECONCILE:-1}"
 case "${SERVICE_UPDATES_BOOT_RECONCILE}" in

@@ -102,15 +102,19 @@ if [[ -n "${FRONTEND_STATIC_DIRS}" ]]; then
     link_optional_asset_dir "${frontend_dir}"
   done <<< "${FRONTEND_STATIC_DIRS}"
 fi
+# Remove newer normalized Manager dir if present; this Comfy image expects the classic layout.
+if [ -d "${CUSTOM_NODES_DIR}/comfyui-manager" ]; then
+  rm -rf "${CUSTOM_NODES_DIR}/comfyui-manager"
+fi
 # Ensure ComfyUI-Manager is present in workspace custom_nodes before rewiring
-if [ ! -d "${CUSTOM_NODES_DIR}/ComfyUI-Manager" ] && [ -d "/opt/pilot/repos/ComfyUI/custom_nodes/ComfyUI-Manager" ]; then
+if [ ! -d "${CUSTOM_NODES_DIR}/ComfyUI-Manager" ] && [ -d "/opt/pilot/bundled/comfy-custom-nodes/ComfyUI-Manager" ]; then
   mkdir -p "${CUSTOM_NODES_DIR}"
-  cp -a "/opt/pilot/repos/ComfyUI/custom_nodes/ComfyUI-Manager" "${CUSTOM_NODES_DIR}/"
+  cp -a "/opt/pilot/bundled/comfy-custom-nodes/ComfyUI-Manager" "${CUSTOM_NODES_DIR}/"
 fi
 # Ensure ComfyUI-Downloader is present in workspace custom_nodes before rewiring
-if [ ! -d "${CUSTOM_NODES_DIR}/ComfyUI-Downloader" ] && [ -d "/opt/pilot/repos/ComfyUI/custom_nodes/ComfyUI-Downloader" ]; then
+if [ ! -d "${CUSTOM_NODES_DIR}/ComfyUI-Downloader" ] && [ -d "/opt/pilot/bundled/comfy-custom-nodes/ComfyUI-Downloader" ]; then
   mkdir -p "${CUSTOM_NODES_DIR}"
-  cp -a "/opt/pilot/repos/ComfyUI/custom_nodes/ComfyUI-Downloader" "${CUSTOM_NODES_DIR}/"
+  cp -a "/opt/pilot/bundled/comfy-custom-nodes/ComfyUI-Downloader" "${CUSTOM_NODES_DIR}/"
 fi
 # Point Comfy models to the shared workspace tree
 rm -rf "${COMFY_DIR}/models"

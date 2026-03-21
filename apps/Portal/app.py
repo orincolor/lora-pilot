@@ -86,6 +86,9 @@ SERVICE_UPDATES_CONFIG_PATH = Path(
 SERVICE_UPDATES_ROLLBACK_LOG_PATH = Path(
     os.environ.get("SERVICE_UPDATES_ROLLBACK_LOG_PATH", str(WORKSPACE_ROOT / "config" / "service-updates-rollback.jsonl"))
 )
+SERVICE_AUTOSTART_CONFIG_PATH = Path(
+    os.environ.get("SERVICE_AUTOSTART_CONFIG_PATH", str(WORKSPACE_ROOT / "config" / "service-autostart.toml"))
+)
 TRAINPILOT_BIN = Path("/opt/pilot/apps/TrainPilot/trainpilot.sh")
 _tp_proc: Optional[subprocess.Popen] = None
 _tp_logs: deque[str] = deque(maxlen=4000)
@@ -1662,6 +1665,16 @@ def _supervisor_config_path() -> Optional[Path]:
 
 
 def _read_service_autostart(name: str) -> Optional[bool]:
+    try:
+        if SERVICE_AUTOSTART_CONFIG_PATH.exists():
+            with SERVICE_AUTOSTART_CONFIG_PATH.open("rb") as f:
+                data = tomllib.load(f)
+            svc = (data.get("services") or {}).get(name, {})
+            if isinstance(svc, dict) and "autostart" in svc:
+                return bool(svc.get("autostart"))
+    except Exception:
+        pass
+
     conf_path = _supervisor_config_path()
     if not conf_path:
         return None
@@ -1688,6 +1701,37 @@ def _read_service_autostart(name: str) -> Optional[bool]:
 
 
 def _set_service_autostart(name: str, enabled: bool) -> Optional[bool]:
+    persisted: dict = {"services": {}}
+    try:
+        if SERVICE_AUTOSTART_CONFIG_PATH.exists():
+            with SERVICE_AUTOSTART_CONFIG_PATH.open("rb") as f:
+                existing = tomllib.load(f)
+            if isinstance(existing, dict):
+                persisted["services"] = dict(existing.get("services") or {})
+    except Exception:
+        persisted = {"services": {}}
+
+    bucket = persisted["services"].get(name)
+    if not isinstance(bucket, dict):
+        bucket = {}
+    bucket["autostart"] = bool(enabled)
+    persisted["services"][name] = bucket
+
+    lines = ["[services]"]
+    for svc_name in SERVICES:
+        svc_bucket = persisted["services"].get(svc_name)
+        if not isinstance(svc_bucket, dict):
+            continue
+        autostart_value = "true" if bool(svc_bucket.get("autostart", True)) else "false"
+        lines.append(f'["services"."{svc_name}"]')
+        lines.append(f"autostart = {autostart_value}")
+        lines.append("")
+    SERVICE_AUTOSTART_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        SERVICE_AUTOSTART_CONFIG_PATH.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to write autostart config: {str(e)}")
+
     conf_path = _supervisor_config_path()
     if not conf_path:
         raise HTTPException(status_code=500, detail="Supervisor config not found")

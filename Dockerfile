@@ -1,5 +1,8 @@
 FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04
 
+ARG BUILDPLATFORM
+ARG TARGETPLATFORM
+
 ENV DEBIAN_FRONTEND=noninteractive \
     TZ=Etc/UTC \
     WORKSPACE_ROOT=/workspace \
@@ -35,7 +38,7 @@ ARG CODE_SERVER_VERSION=4.112.0
 ARG JUPYTERLAB_VERSION=4.5.6
 ARG IPYWIDGETS_VERSION=8.1.8
 ARG COMFYUI_REF=v0.18.0
-ARG COMFYUI_MANAGER_REF=4.1b6
+ARG COMFYUI_MANAGER_REF=3.39.2
 ARG AI_TOOLKIT_REF=35b1cde3cb7b0151a51bf8547bab0931fd57d72d
 ARG AI_TOOLKIT_DIFFUSERS_VERSION=0.36.0
 
@@ -44,6 +47,7 @@ ARG TORCHVISION_VERSION=0.21.0
 ARG TORCHAUDIO_VERSION=2.6.0
 ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cu124
 ARG XFORMERS_VERSION=0.0.29.post3
+ARG CORE_DIFFUSERS_VERSION=0.32.2
 ARG TRANSFORMERS_VERSION=4.44.2
 ARG PEFT_VERSION=0.17.0
 ARG INVOKE_TORCH_VERSION=2.7.0
@@ -156,6 +160,7 @@ bitsandbytes==0.46.0
 numpy<2
 pillow<12
 huggingface-hub<1.0
+diffusers==${CORE_DIFFUSERS_VERSION}
 transformers==${TRANSFORMERS_VERSION}
 peft==${PEFT_VERSION}
 EOF
@@ -173,6 +178,7 @@ bitsandbytes==0.46.0
 numpy<2
 pillow<12
 huggingface-hub<1.0
+diffusers==${CORE_DIFFUSERS_VERSION}
 transformers==${TRANSFORMERS_VERSION}
 peft==${PEFT_VERSION}
 EOF
@@ -191,6 +197,7 @@ RUN if [ "${INSTALL_GPU_STACK}" = "1" ]; then \
       bitsandbytes==0.46.0 \
       toml \
       accelerate \
+      diffusers==${CORE_DIFFUSERS_VERSION} \
       transformers==${TRANSFORMERS_VERSION} \
       peft==${PEFT_VERSION} \
       safetensors \
@@ -238,7 +245,7 @@ RUN if [ "${INSTALL_COMFY}" = "1" ]; then \
         -r /tmp/comfy-req.txt && \
       rm -f /tmp/comfy-req.txt && \
       \
-      mkdir -p /opt/pilot/repos/ComfyUI/custom_nodes && \
+      mkdir -p /opt/pilot/repos/ComfyUI/custom_nodes /opt/pilot/bundled/comfy-custom-nodes && \
       git clone --depth 1 https://github.com/ltdrdata/ComfyUI-Manager.git \
         /opt/pilot/repos/ComfyUI/custom_nodes/ComfyUI-Manager && \
       if [ -n "${COMFYUI_MANAGER_REF}" ]; then \
@@ -251,6 +258,8 @@ RUN if [ "${INSTALL_COMFY}" = "1" ]; then \
       fi && \
       git clone --depth 1 https://github.com/romandev-codex/ComfyUI-Downloader.git \
         /opt/pilot/repos/ComfyUI/custom_nodes/ComfyUI-Downloader && \
+      cp -a /opt/pilot/repos/ComfyUI/custom_nodes/ComfyUI-Manager /opt/pilot/bundled/comfy-custom-nodes/ && \
+      cp -a /opt/pilot/repos/ComfyUI/custom_nodes/ComfyUI-Downloader /opt/pilot/bundled/comfy-custom-nodes/ && \
       \
       mkdir -p /workspace/apps/comfy/user && \
       rm -rf /opt/pilot/repos/ComfyUI/user && \
@@ -276,7 +285,7 @@ RUN if [ "${INSTALL_KOHYA}" = "1" ]; then \
       [ -f "$REQ" ] || REQ=requirements.txt && \
       \
       # Filter out container-hostile / unwanted deps (and avoid recursive -r /tmp/requirements.txt)
-      grep -v -E '^(tensorrt|torch|torchvision|torchaudio|xformers|triton|bitsandbytes|transformers|tensorflow|tensorboard)' \
+      grep -v -E '^(tensorrt|torch|torchvision|torchaudio|xformers|triton|bitsandbytes|diffusers|transformers|peft|huggingface-hub|accelerate|tensorflow|tensorboard)' \
         "$REQ" > /tmp/kohya-req.txt && \
       \
       # Hard constraints so pip can't "helpfully" bring back numpy 2.x
@@ -403,7 +412,11 @@ RUN if [ "${INSTALL_AI_TOOLKIT}" = "1" ] && [ "${INSTALL_INVOKE}" = "1" ]; then 
         grep -R -l "/opt/pilot/repos/ai-toolkit/aitk_db.db" . | xargs -r sed -i 's|/opt/pilot/repos/ai-toolkit/aitk_db.db|/workspace/config/ai-toolkit/aitk_db.db|g' && \
         npm install && \
         DATABASE_URL=file:/tmp/aitk_db.db npx prisma generate && \
-        npm run build && \
+        if [ -z "${BUILDPLATFORM:-}" ] || [ -z "${TARGETPLATFORM:-}" ] || [ "${BUILDPLATFORM}" = "${TARGETPLATFORM}" ]; then \
+          npm run build; \
+        else \
+          echo "Skipping AI Toolkit UI build during cross-platform build (${BUILDPLATFORM} -> ${TARGETPLATFORM}); runtime will build missing assets on first start."; \
+        fi && \
         npm cache clean --force; \
       fi; \
     fi
@@ -427,6 +440,8 @@ COPY scripts/invoke.sh /opt/pilot/invoke.sh
 COPY scripts/tagpilot.sh /opt/pilot/tagpilot.sh
 COPY scripts/portal.sh /opt/pilot/portal.sh
 COPY scripts/copilot-sidecar.sh /opt/pilot/copilot-sidecar.sh
+COPY scripts/ai-toolkit.sh /opt/pilot/ai-toolkit.sh
+COPY scripts/service-autostart-apply.py /opt/pilot/service-autostart-apply.py
 COPY scripts/service-updates-reconcile.py /opt/pilot/service-updates-reconcile.py
 COPY scripts/pilot /usr/local/bin/pilot
 COPY supervisor/supervisord.conf /etc/supervisor/supervisord.conf
@@ -451,6 +466,8 @@ RUN set -eux; \
       /opt/pilot/tagpilot.sh \
       /opt/pilot/portal.sh \
       /opt/pilot/copilot-sidecar.sh \
+      /opt/pilot/ai-toolkit.sh \
+      /opt/pilot/service-autostart-apply.py \
       /opt/pilot/service-updates-reconcile.py \
       /opt/pilot/get-models.sh \
       /opt/pilot/get-modelsgui.sh \
