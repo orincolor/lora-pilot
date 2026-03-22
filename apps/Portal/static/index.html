@@ -301,20 +301,24 @@
           <button id="copilot-drawer-close" class="btn secondary">Close</button>
         </div>
       </div>
-      <div class="status" id="copilot-drawer-status">Loading…</div>
-      <textarea id="copilot-drawer-prompt" class="input" rows="4" placeholder="Ask Copilot…"></textarea>
-      <div class="row wrap gap-8 items-center">
-        <button id="copilot-drawer-send" class="btn primary">Run</button>
-        <label class="status status-check">
-          <input type="checkbox" id="copilot-drawer-allow-urls" />
-          allow all URLs
-        </label>
-        <button id="copilot-drawer-clear" class="btn secondary">Clear</button>
-        <span class="status is-hidden" id="copilot-drawer-running">Running…</span>
+      <div class="drawer-messages">
+        <div class="status" id="copilot-drawer-status">Loading…</div>
+        <pre id="copilot-drawer-output" class="log-box mono drawer-output"></pre>
+        <div class="tip">
+          First-time setup: run <code>copilot</code> then <code>/login</code> in a terminal; config persists under <code>/workspace</code>.
+        </div>
       </div>
-      <pre id="copilot-drawer-output" class="log-box mono drawer-output"></pre>
-      <div class="tip">
-        First-time setup: run <code>copilot</code> then <code>/login</code> in a terminal; config persists under <code>/workspace</code>.
+      <div class="drawer-composer">
+        <textarea id="copilot-drawer-prompt" class="input" rows="4" placeholder="Ask Copilot…"></textarea>
+        <div class="row wrap gap-8 items-center">
+          <button id="copilot-drawer-send" class="btn primary">Run</button>
+          <label class="status status-check">
+            <input type="checkbox" id="copilot-drawer-allow-urls" />
+            allow all URLs
+          </label>
+          <button id="copilot-drawer-clear" class="btn secondary">Clear</button>
+          <span class="status is-hidden" id="copilot-drawer-running">Running…</span>
+        </div>
       </div>
     </div>
   </div>

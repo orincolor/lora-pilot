@@ -463,39 +463,78 @@ main {
 .control-bar .icon-button.download-icon,
 .control-bar .icon-button.tag-icon,
 .control-bar .icon-button.trash-icon {
+  position: relative;
   width: 34px;
   height: 34px;
   border-radius: 8px;
   padding: 0;
   background-color: rgba(255,255,255,0.03);
   border: 1px solid #666;
+  background-image: none;
+  color: var(--mp-text);
+}
+
+.control-bar .icon-button.like-icon::before,
+.control-bar .icon-button.upscale-icon::before,
+.control-bar .icon-button.download-icon::before,
+.control-bar .icon-button.tag-icon::before,
+.control-bar .icon-button.trash-icon::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 18px;
+  height: 18px;
+  background-color: currentColor;
   background-repeat: no-repeat;
   background-position: center;
-  background-size: 18px;
-  color: transparent;
+  background-size: contain;
+  -webkit-mask-image: var(--mp-icon-mask);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  -webkit-mask-size: contain;
+  mask-image: var(--mp-icon-mask);
+  mask-repeat: no-repeat;
+  mask-position: center;
+  mask-size: contain;
 }
 
 .control-bar .icon-button.like-icon {
-  background-image: var(--icon-heart);
+  --mp-icon-mask: var(--icon-heart);
 }
 
 .control-bar .icon-button.upscale-icon {
-  background-image: var(--icon-upscale);
-  background-size: 17px;
+  --mp-icon-mask: var(--icon-upscale);
+}
+
+.control-bar .icon-button.upscale-icon::before {
+  width: 17px;
+  height: 17px;
 }
 
 .control-bar .icon-button.download-icon {
-  background-image: var(--icon-download);
+  --mp-icon-mask: var(--icon-download);
 }
 
 .control-bar .icon-button.tag-icon {
-  background-image: var(--icon-tag);
-  background-size: 19px;
+  --mp-icon-mask: var(--icon-tag);
+}
+
+.control-bar .icon-button.tag-icon::before {
+  width: 19px;
+  height: 19px;
 }
 
 .control-bar .icon-button.trash-icon {
-  background-image: var(--icon-trash);
-  background-size: 18px;
+  --mp-icon-mask: var(--icon-trash);
+}
+
+.control-bar .icon-button:hover {
+  color: var(--mp-accent);
+}
+
+.control-bar .icon-button.trash-icon:hover {
+  color: var(--mp-danger);
 }
 
 /* --------------------------
