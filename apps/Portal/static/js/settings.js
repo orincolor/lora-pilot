@@ -13,6 +13,26 @@ window.initSettings = async function () {
     copilotSave: document.getElementById("settings-copilot-save"),
     copilotClear: document.getElementById("settings-copilot-clear"),
     copilotStatus: document.getElementById("settings-copilot-status"),
+    mediapilotInput: document.getElementById("settings-mediapilot-password"),
+    mediapilotSave: document.getElementById("settings-mediapilot-save"),
+    mediapilotStatus: document.getElementById("settings-mediapilot-status"),
+    theme: document.getElementById("settings-theme"),
+    uiSave: document.getElementById("settings-ui-save"),
+    sidebarCompact: document.getElementById("settings-sidebar-compact"),
+    uiStatus: document.getElementById("settings-ui-status"),
+    shutdownMode: document.getElementById("settings-shutdown-mode"),
+    shutdownHours: document.getElementById("settings-shutdown-hours"),
+    shutdownMins: document.getElementById("settings-shutdown-mins"),
+    shutdownSecs: document.getElementById("settings-shutdown-secs"),
+    shutdownSave: document.getElementById("settings-shutdown-save"),
+    shutdownStatus: document.getElementById("settings-shutdown-status"),
+    jupyterToken: document.getElementById("settings-jupyter-token"),
+    jupyterOrigin: document.getElementById("settings-jupyter-origin"),
+    jupyterSave: document.getElementById("settings-jupyter-save"),
+    jupyterStatus: document.getElementById("settings-jupyter-status"),
+    copilotAllowUrls: document.getElementById("settings-copilot-allow-urls"),
+    copilotDefaultsSave: document.getElementById("settings-copilot-defaults-save"),
+    copilotDefaultsStatus: document.getElementById("settings-copilot-defaults-status"),
   };
 
   async function refresh() {
@@ -22,6 +42,14 @@ window.initSettings = async function () {
       fetchJson("/api/copilot/token"),
     ]);
     if (els.passwordEnabled) els.passwordEnabled.checked = !!(settings && settings.password_enabled);
+    if (els.theme) els.theme.value = settings && settings.theme === "dark" ? "dark" : "light";
+    if (els.sidebarCompact) els.sidebarCompact.checked = !!(settings && settings.sidebar_compact);
+    if (els.shutdownMode) els.shutdownMode.value = (settings && settings.shutdown_mode) || "";
+    if (els.shutdownHours) els.shutdownHours.value = String((settings && settings.shutdown_default_hours) ?? 0);
+    if (els.shutdownMins) els.shutdownMins.value = String((settings && settings.shutdown_default_mins) ?? 1);
+    if (els.shutdownSecs) els.shutdownSecs.value = String((settings && settings.shutdown_default_secs) ?? 0);
+    if (els.copilotAllowUrls) els.copilotAllowUrls.checked = !!(settings && settings.copilot_allow_all_urls);
+    if (els.jupyterOrigin) els.jupyterOrigin.value = (settings && settings.jupyter_allow_origin_pat) || "";
     if (els.passwordInput) {
       els.passwordInput.value = "";
       els.passwordInput.placeholder = settings && settings.password_enabled
@@ -35,6 +63,18 @@ window.initSettings = async function () {
     if (els.copilotInput) {
       els.copilotInput.value = "";
       els.copilotInput.placeholder = copilot && copilot.set ? "Copilot token saved" : "COPILOT_GITHUB_TOKEN";
+    }
+    if (els.mediapilotInput) {
+      els.mediapilotInput.value = "";
+      els.mediapilotInput.placeholder = settings && settings.mediapilot_password_set
+        ? "Password set. Enter new value or leave empty to remove it"
+        : "Empty = no password";
+    }
+    if (els.jupyterToken) {
+      els.jupyterToken.value = "";
+      els.jupyterToken.placeholder = settings && settings.jupyter_token_set
+        ? "Token set. Enter new value or leave empty to regenerate"
+        : "Leave empty to regenerate on restart";
     }
   }
 
@@ -75,6 +115,103 @@ window.initSettings = async function () {
     } catch (e) {
       if (statusEl) statusEl.textContent = e.message || String(e);
       throw e;
+    }
+  }
+
+  async function saveMediaPilotPassword() {
+    const password = ((els.mediapilotInput && els.mediapilotInput.value) || "").trim();
+    if (els.mediapilotStatus) els.mediapilotStatus.textContent = password ? "Saving..." : "Clearing...";
+    try {
+      const res = await fetchJson("/api/settings/mediapilot/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (els.mediapilotStatus) {
+        els.mediapilotStatus.textContent = res && res.set
+          ? "MediaPilot password saved."
+          : "MediaPilot password cleared.";
+      }
+      await refresh();
+    } catch (e) {
+      if (els.mediapilotStatus) els.mediapilotStatus.textContent = e.message || String(e);
+    }
+  }
+
+  async function saveUiSettings() {
+    if (els.uiStatus) els.uiStatus.textContent = "Saving...";
+    try {
+      const res = await fetchJson("/api/settings/ui", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          theme: els.theme?.value || "light",
+          sidebar_compact: !!els.sidebarCompact?.checked,
+        }),
+      });
+      if (typeof window.applyControlPilotUiSettings === "function") {
+        window.applyControlPilotUiSettings(res);
+      }
+      if (els.uiStatus) els.uiStatus.textContent = "UI defaults saved.";
+    } catch (e) {
+      if (els.uiStatus) els.uiStatus.textContent = e.message || String(e);
+    }
+  }
+
+  async function saveShutdownDefaults() {
+    if (els.shutdownStatus) els.shutdownStatus.textContent = "Saving...";
+    try {
+      await fetchJson("/api/settings/shutdown-defaults", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          shutdown_mode: els.shutdownMode?.value || "",
+          hours: Number(els.shutdownHours?.value || 0),
+          mins: Number(els.shutdownMins?.value || 0),
+          secs: Number(els.shutdownSecs?.value || 0),
+        }),
+      });
+      if (els.shutdownStatus) els.shutdownStatus.textContent = "Shutdown defaults saved.";
+      if (typeof window.refreshControlPilotSettings === "function") {
+        await window.refreshControlPilotSettings();
+      }
+    } catch (e) {
+      if (els.shutdownStatus) els.shutdownStatus.textContent = e.message || String(e);
+    }
+  }
+
+  async function saveJupyterSettings() {
+    if (els.jupyterStatus) els.jupyterStatus.textContent = "Saving and restarting Jupyter...";
+    try {
+      await fetchJson("/api/settings/jupyter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: els.jupyterToken?.value ?? "",
+          allow_origin_pat: els.jupyterOrigin?.value || "",
+        }),
+      });
+      if (els.jupyterStatus) els.jupyterStatus.textContent = "Jupyter settings saved and service restarted.";
+      await refresh();
+    } catch (e) {
+      if (els.jupyterStatus) els.jupyterStatus.textContent = e.message || String(e);
+    }
+  }
+
+  async function saveCopilotDefaults() {
+    if (els.copilotDefaultsStatus) els.copilotDefaultsStatus.textContent = "Saving...";
+    try {
+      const res = await fetchJson("/api/settings/copilot-defaults", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ allow_all_urls: !!els.copilotAllowUrls?.checked }),
+      });
+      if (typeof window.applyCopilotDrawerDefaults === "function") {
+        window.applyCopilotDrawerDefaults(res);
+      }
+      if (els.copilotDefaultsStatus) els.copilotDefaultsStatus.textContent = "Copilot drawer defaults saved.";
+    } catch (e) {
+      if (els.copilotDefaultsStatus) els.copilotDefaultsStatus.textContent = e.message || String(e);
     }
   }
 
@@ -126,6 +263,26 @@ window.initSettings = async function () {
       if (els.copilotStatus) els.copilotStatus.textContent = "Copilot token cleared and sidecar restarted.";
       await refresh();
     });
+  }
+  if (els.mediapilotSave && !els.mediapilotSave.dataset.bound) {
+    els.mediapilotSave.dataset.bound = "1";
+    els.mediapilotSave.addEventListener("click", saveMediaPilotPassword);
+  }
+  if (els.uiSave && !els.uiSave.dataset.bound) {
+    els.uiSave.dataset.bound = "1";
+    els.uiSave.addEventListener("click", saveUiSettings);
+  }
+  if (els.shutdownSave && !els.shutdownSave.dataset.bound) {
+    els.shutdownSave.dataset.bound = "1";
+    els.shutdownSave.addEventListener("click", saveShutdownDefaults);
+  }
+  if (els.jupyterSave && !els.jupyterSave.dataset.bound) {
+    els.jupyterSave.dataset.bound = "1";
+    els.jupyterSave.addEventListener("click", saveJupyterSettings);
+  }
+  if (els.copilotDefaultsSave && !els.copilotDefaultsSave.dataset.bound) {
+    els.copilotDefaultsSave.dataset.bound = "1";
+    els.copilotDefaultsSave.addEventListener("click", saveCopilotDefaults);
   }
 
   try {

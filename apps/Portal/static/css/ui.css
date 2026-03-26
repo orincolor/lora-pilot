@@ -418,7 +418,7 @@
   min-height: 0;
   flex-direction: column;
   gap: 10px;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .drawer-composer {
@@ -435,4 +435,21 @@
   min-height: 220px;
   max-height: none;
   margin: 0;
+  overflow: auto;
+}
+
+.drawer-tip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#copilot-drawer-auth-warning {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
 }

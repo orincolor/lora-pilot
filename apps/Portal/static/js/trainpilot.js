@@ -9,7 +9,11 @@ window.initTrainpilot = function () {
 function bindTpControls() {
   const status = document.getElementById("tp-status");
   const output = document.getElementById("tp-output");
+  const tomlPath = document.getElementById("tp-toml");
   if (status) status.textContent = "";
+  if (tomlPath && !tomlPath.value) {
+    tomlPath.value = "/workspace/config/trainpilot/newlora.toml";
+  }
   if (output && !output.dataset.bound) {
     output.dataset.bound = "1";
     output.addEventListener("input", () => {
@@ -196,6 +200,12 @@ window.openDatasets = function (evt) {
   } else {
     window.location.href = "/#datasets";
   }
+};
+
+window.openTrainpilotTensorBoard = function () {
+  const url = typeof window.serviceUrl === "function" ? window.serviceUrl("diffpipe") : null;
+  if (!url) return;
+  window.open(url, "_blank", "noopener,noreferrer");
 };
 
 window.startTrainPilot = async function () {
@@ -389,6 +399,8 @@ function updateEpochExample(name) {
 window.showTomlConfig = async function () {
   const modal = document.getElementById("toml-modal");
   const content = document.getElementById("toml-content");
+  const pathEl = document.getElementById("toml-modal-path");
+  const saveStatus = document.getElementById("toml-save-status");
   
   if (!modal || !content) return;
   
@@ -396,19 +408,22 @@ window.showTomlConfig = async function () {
   modal.classList.add("show");
   content.className = "toml-loading";
   content.textContent = "Loading configuration...";
+  if (saveStatus) saveStatus.textContent = "";
   
   try {
     // Fetch TOML content from backend
-    const response = await fetch("/api/trainpilot/toml");
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-    const data = await response.json();
+    const data = await fetchJson("/api/trainpilot/toml");
     
     if (data.content) {
-      content.className = "toml-content";
-      // Apply basic TOML syntax highlighting
-      content.innerHTML = highlightToml(data.content);
+      content.className = "";
+      content.innerHTML = `<textarea id="toml-editor" class="toml-editor" spellcheck="false"></textarea>`;
+      const editor = document.getElementById("toml-editor");
+      if (editor) editor.value = data.content;
+      if (pathEl) pathEl.textContent = data.path || "/workspace/config/trainpilot/newlora.toml";
+      const pathInput = document.getElementById("tp-toml");
+      const pathLabel = document.getElementById("toml-config-path");
+      if (pathInput) pathInput.value = data.path || "/workspace/config/trainpilot/newlora.toml";
+      if (pathLabel && data.path) pathLabel.textContent = data.path;
     } else {
       content.className = "toml-loading";
       content.textContent = "Configuration file not found or empty.";
@@ -419,26 +434,33 @@ window.showTomlConfig = async function () {
   }
 };
 
-function highlightToml(tomlContent) {
-  // Basic TOML syntax highlighting
-  return tomlContent
-    // Escape HTML
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    // Highlight keys (before =)
-    .replace(/^([A-Za-z_][A-Za-z0-9_-]*)\s*=/gm, '<span class="key">$1</span> =')
-    // Highlight quoted strings
-    .replace(/"([^"]*)"/g, '<span class="string">"$1"</span>')
-    // Highlight single-quoted strings
-    .replace(/'([^']*)'/g, '<span class="string">\'$1\'</span>')
-    // Highlight numbers
-    .replace(/\b(\d+\.?\d*)\b/g, '<span class="number">$1</span>')
-    // Highlight booleans
-    .replace(/\b(true|false)\b/g, '<span class="boolean">$1</span>')
-    // Highlight comments
-    .replace(/(#.*$)/gm, '<span class="comment">$1</span>');
-}
+window.saveTomlConfig = async function () {
+  const editor = document.getElementById("toml-editor");
+  const saveBtn = document.getElementById("toml-save-btn");
+  const saveStatus = document.getElementById("toml-save-status");
+  if (!editor) return;
+  const content = editor.value || "";
+  if (saveBtn) saveBtn.disabled = true;
+  if (saveStatus) saveStatus.textContent = "Saving...";
+  try {
+    const data = await fetchJson("/api/trainpilot/toml", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+    if (saveStatus) saveStatus.textContent = "Saved.";
+    const pathInput = document.getElementById("tp-toml");
+    const pathLabel = document.getElementById("toml-config-path");
+    const modalPath = document.getElementById("toml-modal-path");
+    if (pathInput && data.path) pathInput.value = data.path;
+    if (pathLabel && data.path) pathLabel.textContent = data.path;
+    if (modalPath && data.path) modalPath.textContent = data.path;
+  } catch (error) {
+    if (saveStatus) saveStatus.textContent = error.message || String(error);
+  } finally {
+    if (saveBtn) saveBtn.disabled = false;
+  }
+};
 
 window.closeTomlConfig = function (evt) {
   if (evt && evt.target) {

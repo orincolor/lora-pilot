@@ -37,14 +37,14 @@ html, body {
   --mp-pill-bg: rgba(37, 99, 235, 0.12);
   --mp-pill-text: #1d4ed8;
   --mp-heart: #e11d48;
-  --icon-heart: url("icons/icon-heart.svg");
-  --icon-upscale: url("icons/icon-upscale.svg");
-  --icon-download: url("icons/icon-download.svg");
-  --icon-tag: url("icons/icon-tag.svg");
+  --icon-heart: url("icons/icon-heart-dark.svg");
+  --icon-upscale: url("icons/icon-upscale-dark.svg");
+  --icon-download: url("icons/icon-download-dark.svg");
+  --icon-tag: url("icons/icon-tag-dark.svg");
   --icon-tag-active: url("icons/icon-tag-active.svg");
-  --icon-trash: url("icons/icon-trash.svg");
-  --icon-chevron-left: url("icons/icon-chevron-left.svg");
-  --icon-chevron-right: url("icons/icon-chevron-right.svg");
+  --icon-trash: url("icons/icon-trash-dark.svg");
+  --icon-chevron-left: url("icons/icon-chevron-left-dark.svg");
+  --icon-chevron-right: url("icons/icon-chevron-right-dark.svg");
 }
 
 :root[data-theme="dark"] {
@@ -72,6 +72,14 @@ html, body {
   --mp-pill-bg: rgba(59, 130, 246, 0.2);
   --mp-pill-text: #93c5fd;
   --mp-heart: #fb7185;
+  --icon-heart: url("icons/icon-heart.svg");
+  --icon-upscale: url("icons/icon-upscale.svg");
+  --icon-download: url("icons/icon-download.svg");
+  --icon-tag: url("icons/icon-tag.svg");
+  --icon-tag-active: url("icons/icon-tag-active.svg");
+  --icon-trash: url("icons/icon-trash.svg");
+  --icon-chevron-left: url("icons/icon-chevron-left.svg");
+  --icon-chevron-right: url("icons/icon-chevron-right.svg");
 }
 
 #loading-screen {
@@ -485,26 +493,18 @@ main {
   margin: auto;
   width: 18px;
   height: 18px;
-  background-color: currentColor;
+  background-image: var(--mp-icon-image);
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
-  -webkit-mask-image: var(--mp-icon-mask);
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-position: center;
-  -webkit-mask-size: contain;
-  mask-image: var(--mp-icon-mask);
-  mask-repeat: no-repeat;
-  mask-position: center;
-  mask-size: contain;
 }
 
 .control-bar .icon-button.like-icon {
-  --mp-icon-mask: var(--icon-heart);
+  --mp-icon-image: var(--icon-heart);
 }
 
 .control-bar .icon-button.upscale-icon {
-  --mp-icon-mask: var(--icon-upscale);
+  --mp-icon-image: var(--icon-upscale);
 }
 
 .control-bar .icon-button.upscale-icon::before {
@@ -513,11 +513,11 @@ main {
 }
 
 .control-bar .icon-button.download-icon {
-  --mp-icon-mask: var(--icon-download);
+  --mp-icon-image: var(--icon-download);
 }
 
 .control-bar .icon-button.tag-icon {
-  --mp-icon-mask: var(--icon-tag);
+  --mp-icon-image: var(--icon-tag);
 }
 
 .control-bar .icon-button.tag-icon::before {
@@ -526,15 +526,15 @@ main {
 }
 
 .control-bar .icon-button.trash-icon {
-  --mp-icon-mask: var(--icon-trash);
+  --mp-icon-image: var(--icon-trash);
 }
 
 .control-bar .icon-button:hover {
-  color: var(--mp-accent);
+  border-color: var(--mp-accent);
 }
 
 .control-bar .icon-button.trash-icon:hover {
-  color: var(--mp-danger);
+  border-color: var(--mp-danger);
 }
 
 /* --------------------------

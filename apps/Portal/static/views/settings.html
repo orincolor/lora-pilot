@@ -28,6 +28,49 @@
   </div>
 
   <div class="card settings-card">
+    <h3 class="settings-section-title">Interface</h3>
+    <div class="field">
+      <label>Theme</label>
+      <div class="settings-row">
+        <select id="settings-theme" class="input w-320">
+          <option value="light">Light</option>
+          <option value="dark">Dark</option>
+        </select>
+        <button id="settings-ui-save" class="btn primary" type="button">Save UI</button>
+      </div>
+    </div>
+    <label class="svc-autostart" title="Use compact sidebar by default">
+      <input id="settings-sidebar-compact" class="svc-switch" type="checkbox" />
+      <span>Compact sidebar by default</span>
+    </label>
+    <div id="settings-ui-status" class="status settings-status"></div>
+  </div>
+
+  <div class="card settings-card">
+    <h3 class="settings-section-title">Shutdown Defaults</h3>
+    <div class="field">
+      <label>RunPod shutdown mode</label>
+      <select id="settings-shutdown-mode" class="input w-320">
+        <option value="">Auto</option>
+        <option value="stop">Stop pod</option>
+        <option value="remove">Remove pod</option>
+      </select>
+      <div class="tip">Auto follows the existing storage-aware logic. Use remove only if you mean it.</div>
+    </div>
+    <div class="field">
+      <label>Default countdown</label>
+      <div class="settings-row">
+        <input id="settings-shutdown-hours" class="input" type="number" min="0" max="99" value="0" style="width:90px" />
+        <input id="settings-shutdown-mins" class="input" type="number" min="0" max="59" value="1" style="width:90px" />
+        <input id="settings-shutdown-secs" class="input" type="number" min="0" max="59" value="0" style="width:90px" />
+        <button id="settings-shutdown-save" class="btn primary" type="button">Save defaults</button>
+      </div>
+      <div class="tip">Used to prefill the Dashboard shutdown scheduler.</div>
+    </div>
+    <div id="settings-shutdown-status" class="status settings-status"></div>
+  </div>
+
+  <div class="card settings-card">
     <h3 class="settings-section-title">Credentials</h3>
     <div class="field">
       <label>Hugging Face Token</label>
@@ -49,6 +92,44 @@
       </div>
       <div class="tip">After changing this token, the Copilot sidecar is restarted so the drawer picks it up.</div>
       <div id="settings-copilot-status" class="status settings-status"></div>
+    </div>
+
+    <div class="field">
+      <label>MediaPilot Password</label>
+      <div class="settings-row">
+        <input id="settings-mediapilot-password" class="input w-320" type="password" placeholder="Empty = no password" />
+        <button id="settings-mediapilot-save" class="btn primary" type="button">Save</button>
+      </div>
+      <div class="tip">This writes <code>MEDIAPILOT_ACCESS_PASSWORD</code> to MediaPilot's <code>.env</code>. Leave it empty to disable password protection.</div>
+      <div id="settings-mediapilot-status" class="status settings-status"></div>
+    </div>
+
+    <div class="field">
+      <label>Jupyter Token</label>
+      <div class="settings-row">
+        <input id="settings-jupyter-token" class="input w-320" type="password" placeholder="Leave empty to regenerate on restart" />
+        <button id="settings-jupyter-save" class="btn primary" type="button">Save</button>
+      </div>
+      <div class="tip">Saving restarts Jupyter. Leaving the token blank removes it and lets Jupyter generate a new one on next start.</div>
+    </div>
+    <div class="field">
+      <label>Jupyter Extra Allow-Origin Pattern</label>
+      <div class="settings-row">
+        <input id="settings-jupyter-origin" class="input w-320" type="text" placeholder="Regex appended to the default allowlist" />
+      </div>
+      <div id="settings-jupyter-status" class="status settings-status"></div>
+    </div>
+
+    <div class="field">
+      <label>Copilot Drawer</label>
+      <label class="svc-autostart" title="Default allow-all-URLs for the Copilot drawer">
+        <input id="settings-copilot-allow-urls" class="svc-switch" type="checkbox" />
+        <span>Default to allow all URLs</span>
+      </label>
+      <div class="settings-row">
+        <button id="settings-copilot-defaults-save" class="btn primary" type="button">Save drawer defaults</button>
+      </div>
+      <div id="settings-copilot-defaults-status" class="status settings-status"></div>
     </div>
   </div>
 </div>

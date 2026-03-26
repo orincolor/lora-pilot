@@ -254,6 +254,14 @@ while :; do
       toml_set "$COPIED_TOML" "max_train_epochs" "raw" "$max_epochs"
       toml_set "$COPIED_TOML" "max_train_steps" "raw" "$train_steps"
 
+      TB_LOG_DIR="/workspace/logs/TrainPilot/${OUTPUT_NAME}"
+      mkdir -p "$TB_LOG_DIR"
+      toml_set "$COPIED_TOML" "logging_dir" "str" "$TB_LOG_DIR"
+      current_log_with="$(toml_get_str "$COPIED_TOML" "log_with" 2>/dev/null || true)"
+      if [[ -z "${current_log_with// /}" ]]; then
+        toml_set "$COPIED_TOML" "log_with" "str" "tensorboard"
+      fi
+
       # precision override
       if [[ "$precision" == "bf16" ]]; then
         toml_set "$COPIED_TOML" "mixed_precision" "str" "bf16"

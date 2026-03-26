@@ -2,6 +2,7 @@ import os
 import subprocess
 import threading
 import time
+import json
 from typing import Optional, Tuple, List
 
 from fastapi import HTTPException
@@ -30,7 +31,16 @@ def _runpod_shutdown_command() -> Tuple[Optional[List[str]], Optional[str], str]
     if not pod_id:
         return None, None, ""
 
-    mode = os.environ.get("RUNPOD_POD_SHUTDOWN", "").strip().lower()
+    mode = ""
+    settings_path = os.environ.get("CONTROLPILOT_SETTINGS_PATH", "/workspace/config/controlpilot-settings.json")
+    try:
+        with open(settings_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        mode = str(data.get("shutdown_mode", "") or "").strip().lower()
+    except Exception:
+        mode = ""
+    if not mode:
+        mode = os.environ.get("RUNPOD_POD_SHUTDOWN", "").strip().lower()
     if mode in ("remove", "terminate", "delete"):
         return ["runpodctl", "remove", "pod", pod_id], "remove", pod_id
     if mode in ("stop", "halt"):

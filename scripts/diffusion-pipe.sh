@@ -6,13 +6,16 @@ PORT="${DIFFPIPE_PORT:-4444}"
 REPO="/opt/pilot/repos/diffusion-pipe"
 BASE_APP_DIR="${ROOT}/apps/diffusion-pipe"
 LOGDIR="${DIFFPIPE_LOGDIR:-${ROOT}/logs/diffusion-pipe}"
+TRAINPILOT_LOGDIR="${TRAINPILOT_TENSORBOARD_LOGDIR:-${ROOT}/logs/TrainPilot}"
 CONFIG="${DIFFPIPE_CONFIG:-}"
 NUM_GPUS="${DIFFPIPE_NUM_GPUS:-1}"
 
 export NCCL_P2P_DISABLE="${NCCL_P2P_DISABLE:-1}"
 export NCCL_IB_DISABLE="${NCCL_IB_DISABLE:-1}"
 
-mkdir -p "${BASE_APP_DIR}" "${LOGDIR}"
+mkdir -p "${BASE_APP_DIR}" "${LOGDIR}" "${TRAINPILOT_LOGDIR}"
+
+TB_LOGDIR_SPEC="${TENSORBOARD_LOGDIR_SPEC:-diffpipe:${LOGDIR},trainpilot:${TRAINPILOT_LOGDIR}}"
 
 source /opt/venvs/diffpipe/bin/activate
 cd "${REPO}"
@@ -27,7 +30,7 @@ if [[ -n "${CONFIG}" ]]; then
   if [[ "${DIFFPIPE_TENSORBOARD:-1}" == "1" ]]; then
     # Silence pkg_resources deprecation warning from tensorboard
     PYTHONWARNINGS="${PYTHONWARNINGS:-ignore:pkg_resources is deprecated as an API:UserWarning}" \
-      /opt/venvs/diffpipe/bin/tensorboard --logdir "${LOGDIR}" --bind_all --port "${PORT}" &
+      /opt/venvs/diffpipe/bin/tensorboard --logdir_spec "${TB_LOGDIR_SPEC}" --bind_all --port "${PORT}" &
     TB_PID=$!
     trap 'kill "${TB_PID}" 2>/dev/null || true' EXIT
   fi
@@ -35,4 +38,4 @@ if [[ -n "${CONFIG}" ]]; then
 fi
 
 echo "DIFFPIPE_CONFIG not set. Starting TensorBoard only on port ${PORT}."
-exec /opt/venvs/diffpipe/bin/tensorboard --logdir "${LOGDIR}" --bind_all --port "${PORT}"
+exec /opt/venvs/diffpipe/bin/tensorboard --logdir_spec "${TB_LOGDIR_SPEC}" --bind_all --port "${PORT}"

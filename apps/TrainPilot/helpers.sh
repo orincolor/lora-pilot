@@ -15,7 +15,7 @@ prepare_env() {
 
   DATASET_ROOT="${DATASET_ROOT:-/workspace/datasets}"
   IMAGES_DIR="${IMAGES_DIR:-$DATASET_ROOT/images}"
-  TOML="${TOML:-/workspace/apps/TrainPilot/newlora.toml}"
+  TOML="${TOML:-/workspace/config/trainpilot/newlora.toml}"
   OUTS_BASE="${OUTS_BASE:-/workspace/outputs}"
   KOHYA_ROOT="${KOHYA_ROOT:-/opt/pilot/repos/kohya_ss}"
 

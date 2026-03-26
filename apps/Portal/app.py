@@ -97,6 +97,8 @@ CONTROLPILOT_SETTINGS_PATH = Path(
 )
 CONTROLPILOT_SESSION_COOKIE = "controlpilot_session"
 TRAINPILOT_BIN = Path("/opt/pilot/apps/TrainPilot/trainpilot.sh")
+TRAINPILOT_BUNDLED_TOML = Path("/opt/pilot/apps/TrainPilot/newlora.toml")
+TRAINPILOT_PERSISTENT_TOML = WORKSPACE_ROOT / "config" / "trainpilot" / "newlora.toml"
 _tp_proc: Optional[subprocess.Popen] = None
 _tp_logs: deque[str] = deque(maxlen=4000)
 _tp_output_dir: Optional[Path] = None
@@ -307,6 +309,27 @@ class ControlPilotLoginRequest(BaseModel):
     password: str
 
 
+class ControlPilotUiSettingsRequest(BaseModel):
+    theme: str
+    sidebar_compact: bool
+
+
+class ControlPilotShutdownDefaultsRequest(BaseModel):
+    shutdown_mode: str = ""
+    hours: int = 0
+    mins: int = 1
+    secs: int = 0
+
+
+class ControlPilotCopilotDefaultsRequest(BaseModel):
+    allow_all_urls: bool
+
+
+class ControlPilotJupyterSettingsRequest(BaseModel):
+    token: Optional[str] = None
+    allow_origin_pat: str = ""
+
+
 class DiskUsage(BaseModel):
     mount: str
     total: int
@@ -341,6 +364,13 @@ def _default_controlpilot_settings() -> dict:
         "password_enabled": False,
         "password_hash": "",
         "session_secret": secrets.token_hex(32),
+        "theme": "light",
+        "sidebar_compact": False,
+        "shutdown_mode": "",
+        "shutdown_default_hours": 0,
+        "shutdown_default_mins": 1,
+        "shutdown_default_secs": 0,
+        "copilot_allow_all_urls": False,
     }
 
 
@@ -356,6 +386,19 @@ def _read_controlpilot_settings() -> dict:
                     settings["password_hash"] = data["password_hash"].strip()
                 if isinstance(data.get("session_secret"), str) and data["session_secret"].strip():
                     settings["session_secret"] = data["session_secret"].strip()
+                if str(data.get("theme", "")).strip() in {"light", "dark"}:
+                    settings["theme"] = str(data.get("theme")).strip()
+                if isinstance(data.get("sidebar_compact"), bool):
+                    settings["sidebar_compact"] = data["sidebar_compact"]
+                if str(data.get("shutdown_mode", "")).strip() in {"", "stop", "remove"}:
+                    settings["shutdown_mode"] = str(data.get("shutdown_mode")).strip()
+                for key in ("shutdown_default_hours", "shutdown_default_mins", "shutdown_default_secs"):
+                    try:
+                        settings[key] = max(0, int(data.get(key, settings[key])))
+                    except Exception:
+                        pass
+                if isinstance(data.get("copilot_allow_all_urls"), bool):
+                    settings["copilot_allow_all_urls"] = data["copilot_allow_all_urls"]
         except Exception:
             pass
     return settings
@@ -366,8 +409,22 @@ def _write_controlpilot_settings(settings: dict) -> None:
     payload["password_enabled"] = bool(settings.get("password_enabled", False))
     payload["password_hash"] = str(settings.get("password_hash", "") or "").strip()
     payload["session_secret"] = str(settings.get("session_secret", "") or "").strip() or secrets.token_hex(32)
+    payload["theme"] = "dark" if str(settings.get("theme", "")).strip() == "dark" else "light"
+    payload["sidebar_compact"] = bool(settings.get("sidebar_compact", False))
+    payload["shutdown_mode"] = str(settings.get("shutdown_mode", "") or "").strip() if str(settings.get("shutdown_mode", "") or "").strip() in {"", "stop", "remove"} else ""
+    payload["shutdown_default_hours"] = max(0, int(settings.get("shutdown_default_hours", 0) or 0))
+    payload["shutdown_default_mins"] = max(0, int(settings.get("shutdown_default_mins", 1) or 0))
+    payload["shutdown_default_secs"] = max(0, int(settings.get("shutdown_default_secs", 0) or 0))
+    payload["copilot_allow_all_urls"] = bool(settings.get("copilot_allow_all_urls", False))
     CONTROLPILOT_SETTINGS_PATH.parent.mkdir(parents=True, exist_ok=True)
     CONTROLPILOT_SETTINGS_PATH.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
+def _merge_controlpilot_settings(updates: dict) -> dict:
+    settings = _read_controlpilot_settings()
+    settings.update(updates)
+    _write_controlpilot_settings(settings)
+    return settings
 
 
 def _hash_controlpilot_password(password: str, *, salt_b64: Optional[str] = None) -> str:
@@ -428,7 +485,11 @@ def _write_secrets_env_vars(updates: dict[str, Optional[str]]) -> None:
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
     secrets_file = CONFIG_DIR / "secrets.env"
     existing = _read_secrets_env_lines()
-    remove_prefixes = tuple(f"export {key}=" for key in updates.keys())
+    prefixes: list[str] = []
+    for key in updates.keys():
+        prefixes.append(f"export {key}=")
+        prefixes.append(f"{key}=")
+    remove_prefixes = tuple(prefixes)
     lines = [ln for ln in existing if not ln.startswith(remove_prefixes)]
     for key, value in updates.items():
         resolved = None if value is None else str(value)
@@ -445,10 +506,59 @@ def _read_secret_env_var(key: str) -> str:
     if value:
         return value
     for line in _read_secrets_env_lines():
-        prefix = f"export {key}="
-        if line.startswith(prefix):
-            return line.split("=", 1)[-1].strip().strip('"')
+        prefixes = (f"export {key}=", f"{key}=")
+        if line.startswith(prefixes):
+            return _normalize_env_value(line.split("=", 1)[-1])
     return ""
+
+
+def _mediapilot_env_file() -> Optional[Path]:
+    if MEDIAPILOT_APP_DIR:
+        return MEDIAPILOT_APP_DIR / ".env"
+    for candidate in MEDIAPILOT_MAIN_CANDIDATES:
+        env_path = candidate.parent / ".env"
+        if env_path.exists() or candidate.parent.exists():
+            return env_path
+    return None
+
+
+def _read_mediapilot_password() -> str:
+    value = _normalize_env_value(os.environ.get("MEDIAPILOT_ACCESS_PASSWORD", ""))
+    if value:
+        return value
+    env_file = _mediapilot_env_file()
+    if not env_file or not env_file.exists():
+        return ""
+    try:
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if stripped.startswith("MEDIAPILOT_ACCESS_PASSWORD="):
+                return _normalize_env_value(stripped.split("=", 1)[1])
+    except Exception:
+        return ""
+    return ""
+
+
+def _write_mediapilot_password(password: str) -> None:
+    env_file = _mediapilot_env_file()
+    if not env_file:
+        raise HTTPException(status_code=500, detail="MediaPilot app directory not found")
+    env_file.parent.mkdir(parents=True, exist_ok=True)
+    lines: list[str] = []
+    if env_file.exists():
+        try:
+            lines = env_file.read_text(encoding="utf-8").splitlines()
+        except Exception:
+            lines = []
+    prefix = "MEDIAPILOT_ACCESS_PASSWORD="
+    lines = [ln for ln in lines if not ln.lstrip().startswith(prefix)]
+    resolved = (password or "").strip()
+    if resolved:
+        lines.append(f"MEDIAPILOT_ACCESS_PASSWORD={resolved}")
+        os.environ["MEDIAPILOT_ACCESS_PASSWORD"] = resolved
+    else:
+        os.environ["MEDIAPILOT_ACCESS_PASSWORD"] = ""
+    env_file.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
     workspace_data_used_bytes: Optional[int] = None
     docs: Optional[str] = None  # unused in telemetry, kept for future
 
@@ -458,6 +568,8 @@ class DatasetEntry(BaseModel):
     display: str     # friendly name
     images: int      # number of image files found
     size_bytes: int
+    has_tags: bool
+    path: str
 
 
 class TrainPilotModelCheckRequest(BaseModel):
@@ -486,8 +598,93 @@ def _is_local_path_value(value: str) -> bool:
         return False
     # Kohya configs can accept HF repo ids, which are not local filesystem paths.
     return value.startswith("/")
-    has_tags: bool
-    path: str
+
+
+_dataset_list_lock = threading.Lock()
+_dataset_list_cache: dict[str, object] = {"expires_at": 0.0, "entries": []}
+_DATASET_LIST_TTL_SECONDS = 8.0
+_DATASET_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
+_DATASET_TAG_EXTS = {".txt", ".caption"}
+
+
+def _scan_dataset_dir(dataset_dir: Path) -> DatasetEntry:
+    images = 0
+    size_bytes = 0
+    has_tags = False
+    stack = [dataset_dir]
+
+    while stack:
+        current = stack.pop()
+        try:
+            with os.scandir(current) as it:
+                for entry in it:
+                    try:
+                        if entry.is_dir(follow_symlinks=False):
+                            stack.append(Path(entry.path))
+                            continue
+                        if not entry.is_file(follow_symlinks=False):
+                            continue
+                        suffix = Path(entry.name).suffix.lower()
+                        stat_result = entry.stat(follow_symlinks=False)
+                        size_bytes += stat_result.st_size
+                        if suffix in _DATASET_IMAGE_EXTS:
+                            images += 1
+                        elif not has_tags and suffix in _DATASET_TAG_EXTS and stat_result.st_size > 0:
+                            has_tags = True
+                    except Exception:
+                        continue
+        except Exception:
+            continue
+
+    raw = dataset_dir.name
+    trimmed = raw[2:] if raw.startswith("1_") else raw
+    display = trimmed.replace("_", " ").strip().title() or raw
+    return DatasetEntry(
+        name=raw,
+        display=display,
+        images=images,
+        size_bytes=size_bytes,
+        has_tags=has_tags,
+        path=str(dataset_dir),
+    )
+
+
+def _list_dataset_entries() -> List[DatasetEntry]:
+    base = WORKSPACE_ROOT / "datasets"
+    if not base.exists():
+        return []
+
+    now = time.monotonic()
+    with _dataset_list_lock:
+        expires_at = float(_dataset_list_cache.get("expires_at", 0.0) or 0.0)
+        cached_entries = _dataset_list_cache.get("entries", [])
+        if expires_at > now and isinstance(cached_entries, list):
+            return list(cached_entries)
+
+    dataset_dirs: list[Path] = []
+    try:
+        with os.scandir(base) as it:
+            for entry in it:
+                try:
+                    if entry.is_dir(follow_symlinks=False) and entry.name.startswith("1_"):
+                        dataset_dirs.append(Path(entry.path))
+                except Exception:
+                    continue
+    except Exception:
+        return []
+
+    entries = [_scan_dataset_dir(d) for d in sorted(dataset_dirs)]
+
+    with _dataset_list_lock:
+        _dataset_list_cache["expires_at"] = time.monotonic() + _DATASET_LIST_TTL_SECONDS
+        _dataset_list_cache["entries"] = list(entries)
+    return entries
+
+
+def _invalidate_dataset_list_cache() -> None:
+    with _dataset_list_lock:
+        _dataset_list_cache["expires_at"] = 0.0
+        _dataset_list_cache["entries"] = []
 
 
 class NoCacheStaticFiles(StaticFiles):
@@ -834,38 +1031,7 @@ def list_models():
 
 @app.get("/api/datasets", response_model=List[DatasetEntry])
 def list_datasets():
-    base = WORKSPACE_ROOT / "datasets"
-    entries: List[DatasetEntry] = []
-    if not base.exists():
-        return entries
-    exts = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif"}
-    for d in sorted(base.iterdir()):
-        if not d.is_dir():
-            continue
-        if not d.name.startswith("1_"):
-            continue
-        images = 0
-        size_bytes = 0
-        has_tags = False
-        try:
-            for p in d.rglob("*"):
-                if p.is_file() and p.suffix.lower() in exts:
-                    images += 1
-                if p.is_file():
-                    try:
-                        size_bytes += p.stat().st_size
-                    except Exception:
-                        pass
-                if p.is_file() and p.suffix.lower() in {".txt"}:
-                    has_tags = True
-        except Exception:
-            pass
-        raw = d.name
-        # Strip leading "1_" prefix and prettify
-        trimmed = raw[2:] if raw.startswith("1_") else raw
-        display = trimmed.replace("_", " ").strip().title() or raw
-        entries.append(DatasetEntry(name=raw, display=display, images=images, size_bytes=size_bytes, has_tags=has_tags, path=str(d)))
-    return entries
+    return _list_dataset_entries()
 
 
 async def _copilot_sidecar_request(method: str, path: str, json_body: Optional[dict] = None):
@@ -994,6 +1160,7 @@ def create_dataset(payload: dict):
     if target.exists():
         raise HTTPException(status_code=400, detail="dataset already exists")
     target.mkdir(parents=True, exist_ok=True)
+    _invalidate_dataset_list_cache()
     return {"status": "created", "path": str(target)}
 
 
@@ -1017,6 +1184,7 @@ def upload_dataset(file: UploadFile = File(...)):
         _safe_extract_zip(dest, extract_dir)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    _invalidate_dataset_list_cache()
     return {"status": "uploaded", "zip": str(dest), "extracted_to": str(extract_dir)}
 
 
@@ -1038,6 +1206,7 @@ def delete_dataset(name: str):
                 candidate.unlink()
             except Exception:
                 pass
+    _invalidate_dataset_list_cache()
     return {"status": "deleted", "path": str(target)}
 
 
@@ -1073,7 +1242,7 @@ def rename_dataset(name: str, payload: dict):
                     old_zip.rename(new_zip)
                 except Exception:
                     pass  # Best effort
-        
+        _invalidate_dataset_list_cache()
         return {"status": "renamed", "old_path": str(source), "new_path": str(target)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1084,7 +1253,7 @@ def tagpilot_load(name: str):
     target = _dataset_dir(name)
     if not target.exists() or not target.is_dir():
         raise HTTPException(status_code=404, detail="Dataset not found")
-    allowed = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".txt"}
+    allowed = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".gif", ".txt", ".caption"}
     files = []
     for p in sorted(target.rglob("*")):
         if not p.is_file():
@@ -1118,6 +1287,7 @@ def tagpilot_save(name: str, file: UploadFile = File(...)):
         _safe_extract_zip(dest, target)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    _invalidate_dataset_list_cache()
     return {"status": "saved", "path": str(target), "zip": str(dest)}
 
 
@@ -1156,6 +1326,7 @@ def tagpilot_save_item(
                         zf.write(p, p.relative_to(target).as_posix())
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    _invalidate_dataset_list_cache()
 
     payload = {
         "status": "saved-item",
@@ -1275,11 +1446,22 @@ def get_copilot_token_status():
 
 @app.get("/api/settings")
 def get_controlpilot_settings(request: Request):
+    settings = _read_controlpilot_settings()
     return {
         "password_enabled": _controlpilot_auth_enabled(),
         "authenticated": _controlpilot_request_authenticated(request),
         "hf_token_set": bool(_read_secret_env_var("HF_TOKEN")),
         "copilot_token_set": bool(_read_secret_env_var("COPILOT_GITHUB_TOKEN")),
+        "mediapilot_password_set": bool(_read_mediapilot_password()),
+        "theme": settings.get("theme", "light"),
+        "sidebar_compact": bool(settings.get("sidebar_compact", False)),
+        "shutdown_mode": str(settings.get("shutdown_mode", "") or ""),
+        "shutdown_default_hours": int(settings.get("shutdown_default_hours", 0) or 0),
+        "shutdown_default_mins": int(settings.get("shutdown_default_mins", 1) or 0),
+        "shutdown_default_secs": int(settings.get("shutdown_default_secs", 0) or 0),
+        "copilot_allow_all_urls": bool(settings.get("copilot_allow_all_urls", False)),
+        "jupyter_token_set": bool(_read_secret_env_var("JUPYTER_TOKEN")),
+        "jupyter_allow_origin_pat": _read_secret_env_var("JUPYTER_ALLOW_ORIGIN_PAT"),
     }
 
 
@@ -1346,6 +1528,66 @@ def set_controlpilot_password(request: Request, payload: ControlPilotPasswordReq
     return response
 
 
+@app.post("/api/settings/ui")
+def set_controlpilot_ui_settings(payload: ControlPilotUiSettingsRequest):
+    theme = "dark" if str(payload.theme).strip() == "dark" else "light"
+    settings = _merge_controlpilot_settings({
+        "theme": theme,
+        "sidebar_compact": bool(payload.sidebar_compact),
+    })
+    return {"status": "ok", "theme": settings["theme"], "sidebar_compact": settings["sidebar_compact"]}
+
+
+@app.post("/api/settings/shutdown-defaults")
+def set_controlpilot_shutdown_defaults(payload: ControlPilotShutdownDefaultsRequest):
+    mode = str(payload.shutdown_mode or "").strip().lower()
+    if mode not in {"", "stop", "remove"}:
+        raise HTTPException(status_code=422, detail="shutdown_mode must be empty, stop, or remove")
+    hours = max(0, min(99, int(payload.hours)))
+    mins = max(0, min(59, int(payload.mins)))
+    secs = max(0, min(59, int(payload.secs)))
+    settings = _merge_controlpilot_settings({
+        "shutdown_mode": mode,
+        "shutdown_default_hours": hours,
+        "shutdown_default_mins": mins,
+        "shutdown_default_secs": secs,
+    })
+    return {
+        "status": "ok",
+        "shutdown_mode": settings["shutdown_mode"],
+        "hours": settings["shutdown_default_hours"],
+        "mins": settings["shutdown_default_mins"],
+        "secs": settings["shutdown_default_secs"],
+    }
+
+
+@app.post("/api/settings/copilot-defaults")
+def set_controlpilot_copilot_defaults(payload: ControlPilotCopilotDefaultsRequest):
+    settings = _merge_controlpilot_settings({"copilot_allow_all_urls": bool(payload.allow_all_urls)})
+    return {"status": "ok", "allow_all_urls": settings["copilot_allow_all_urls"]}
+
+
+@app.post("/api/settings/jupyter")
+def set_controlpilot_jupyter_settings(payload: ControlPilotJupyterSettingsRequest):
+    token = None if payload.token is None else str(payload.token).strip()
+    allow_origin_pat = str(payload.allow_origin_pat or "").strip()
+    updates = {"JUPYTER_ALLOW_ORIGIN_PAT": allow_origin_pat or None}
+    if token is not None:
+        updates["JUPYTER_TOKEN"] = token or None
+    _write_secrets_env_vars(updates)
+    if not SUPERVISORCTL:
+        raise HTTPException(status_code=500, detail="supervisorctl not found")
+    try:
+        subprocess.check_output([SUPERVISORCTL, "restart", "jupyter"], text=True, stderr=subprocess.STDOUT)
+    except subprocess.CalledProcessError as e:
+        raise HTTPException(status_code=500, detail=e.output or str(e))
+    return {
+        "status": "ok",
+        "jupyter_token_set": bool(_read_secret_env_var("JUPYTER_TOKEN")),
+        "jupyter_allow_origin_pat": _read_secret_env_var("JUPYTER_ALLOW_ORIGIN_PAT"),
+    }
+
+
 @app.post("/api/copilot/token")
 def set_copilot_token(payload: dict):
     token = None
@@ -1367,6 +1609,15 @@ def restart_copilot_sidecar():
     except subprocess.CalledProcessError as e:
         raise HTTPException(status_code=500, detail=e.output or str(e))
     return {"status": "ok"}
+
+
+@app.post("/api/settings/mediapilot/password")
+def set_mediapilot_password(payload: dict):
+    password = ""
+    if isinstance(payload, dict):
+        password = str(payload.get("password") or "").strip()
+    _write_mediapilot_password(password)
+    return {"status": "ok", "set": bool(password)}
 
 
 def _run_cmd_capture(cmd: list[str], timeout: int = 30) -> str:
@@ -2534,7 +2785,7 @@ class TrainPilotRequest(BaseModel):
     dataset_name: str
     output_name: str
     profile: str = "regular"
-    toml_path: str = "/opt/pilot/apps/TrainPilot/newlora.toml"
+    toml_path: str = ""
 
 
 def _tp_reader(proc: subprocess.Popen):
@@ -2548,6 +2799,25 @@ def _tp_reader(proc: subprocess.Popen):
     proc.stdout.close()
     proc.wait()
     _tp_proc = None
+
+
+def _ensure_trainpilot_toml() -> Path:
+    TRAINPILOT_PERSISTENT_TOML.parent.mkdir(parents=True, exist_ok=True)
+    if TRAINPILOT_PERSISTENT_TOML.exists():
+        return TRAINPILOT_PERSISTENT_TOML
+    if TRAINPILOT_BUNDLED_TOML.exists():
+        shutil.copy2(TRAINPILOT_BUNDLED_TOML, TRAINPILOT_PERSISTENT_TOML)
+        return TRAINPILOT_PERSISTENT_TOML
+    raise HTTPException(status_code=500, detail=f"Bundled TrainPilot TOML not found at {TRAINPILOT_BUNDLED_TOML}")
+
+
+def _resolve_trainpilot_toml_path(raw_path: str = "") -> Path:
+    candidate = Path((raw_path or "").strip()) if (raw_path or "").strip() else _ensure_trainpilot_toml()
+    if not candidate.is_absolute():
+        candidate = WORKSPACE_ROOT / candidate
+    if candidate == TRAINPILOT_BUNDLED_TOML:
+        candidate = _ensure_trainpilot_toml()
+    return candidate
 
 
 @app.post("/api/trainpilot/start")
@@ -2569,7 +2839,7 @@ def trainpilot_start(req: TrainPilotRequest):
     profile = req.profile.strip() or "regular"
     if profile not in ("quick_test", "regular", "high_quality"):
         raise HTTPException(status_code=400, detail="Invalid profile")
-    toml_path = Path(req.toml_path.strip() or "/opt/pilot/apps/TrainPilot/newlora.toml")
+    toml_path = _resolve_trainpilot_toml_path(req.toml_path)
     if not toml_path.exists():
         raise HTTPException(status_code=400, detail=f"TOML not found: {toml_path}")
     
@@ -2638,7 +2908,7 @@ def trainpilot_model_check(req: TrainPilotModelCheckRequest):
     If they are missing and can be mapped to a manifest entry, return the model name
     so the UI can offer to download with progress.
     """
-    toml_path = Path((req.toml_path or "").strip() or "/opt/pilot/apps/TrainPilot/newlora.toml")
+    toml_path = _resolve_trainpilot_toml_path(req.toml_path)
     if not toml_path.exists():
         raise HTTPException(status_code=404, detail=f"TOML not found: {toml_path}")
 
@@ -2752,35 +3022,32 @@ def trainpilot_logs(limit: int = 500):
             else:
                 lines.append(f"--- Log file not found for current run: {log_file} ---")
         else:
-            # Find the most recent training output directory
+            # Find the most recent TrainPilot-style output directory.
             lines.append(f"--- Checking outputs directory: {outs_base} ---")
-            output_dirs = [d for d in outs_base.iterdir() if d.is_dir()]
-            lines.append(f"--- Found {len(output_dirs)} output directories ---")
-            output_dirs.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+            output_dirs = []
+            for d in outs_base.iterdir():
+                if not d.is_dir():
+                    continue
+                log_file = d / "_logs" / "train.log"
+                if log_file.exists():
+                    output_dirs.append(d)
+            lines.append(f"--- Found {len(output_dirs)} TrainPilot output directories ---")
+            output_dirs.sort(key=lambda x: (x / "_logs" / "train.log").stat().st_mtime, reverse=True)
             for i, output_dir in enumerate(output_dirs[:3]):
                 lines.append(f"--- Checking output dir {i+1}: {output_dir.name} ---")
                 log_file = output_dir / "_logs" / "train.log"
-                lines.append(f"--- Looking for log file: {log_file} ---")
-                if log_file.exists():
-                    try:
-                        stat_info = log_file.stat()
-                        lines.append(f"--- Log file exists, size: {stat_info.st_size} bytes, modified: {datetime.fromtimestamp(stat_info.st_mtime)} ---")
-                        with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
-                            kohya_lines = f.readlines()
-                            if kohya_lines:
-                                lines.append(f"--- Kohya training logs from {output_dir.name} ({len(kohya_lines)} lines) ---")
-                                lines.extend([line.rstrip() for line in kohya_lines[-100:]])
-                                break
-                    except Exception as e:
-                        lines.append(f"--- Error reading Kohya logs from {output_dir.name}: {str(e)} ---")
-                        continue
-                else:
-                    lines.append(f"--- Log file not found: {log_file} ---")
-                    logs_dir = output_dir / "_logs"
-                    if logs_dir.exists():
-                        lines.append(f"--- _logs directory exists, contents: {list(logs_dir.iterdir())} ---")
-                    else:
-                        lines.append(f"--- _logs directory does not exist ---")
+                try:
+                    stat_info = log_file.stat()
+                    lines.append(f"--- Log file exists, size: {stat_info.st_size} bytes, modified: {datetime.fromtimestamp(stat_info.st_mtime)} ---")
+                    with open(log_file, 'r', encoding='utf-8', errors='replace') as f:
+                        kohya_lines = f.readlines()
+                        if kohya_lines:
+                            lines.append(f"--- Kohya training logs from {output_dir.name} ({len(kohya_lines)} lines) ---")
+                            lines.extend([line.rstrip() for line in kohya_lines[-100:]])
+                            break
+                except Exception as e:
+                    lines.append(f"--- Error reading Kohya logs from {output_dir.name}: {str(e)} ---")
+                    continue
     except Exception as e:
         lines.append(f"--- Error accessing training outputs: {str(e)} ---")
     
@@ -2791,16 +3058,39 @@ def trainpilot_logs(limit: int = 500):
 @app.get("/api/trainpilot/toml")
 def get_trainpilot_toml():
     """Get the current TrainPilot TOML configuration content."""
-    toml_path = Path("/opt/pilot/apps/TrainPilot/newlora.toml")
+    toml_path = _ensure_trainpilot_toml()
     
     if not toml_path.exists():
         raise HTTPException(status_code=404, detail="TOML configuration file not found")
     
     try:
         content = toml_path.read_text(encoding="utf-8")
-        return {"content": content}
+        return {"content": content, "path": str(toml_path)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error reading TOML file: {str(e)}")
+
+
+@app.post("/api/trainpilot/toml")
+async def save_trainpilot_toml(request: Request):
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    content = ""
+    if isinstance(payload, dict):
+        content = str(payload.get("content") or "")
+    if not content.strip():
+        raise HTTPException(status_code=422, detail="TOML content is required")
+    try:
+        tomllib.loads(content)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid TOML: {str(e)}")
+    toml_path = _ensure_trainpilot_toml()
+    try:
+        toml_path.write_text(content.rstrip() + "\n", encoding="utf-8")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error saving TOML file: {str(e)}")
+    return {"status": "ok", "path": str(toml_path)}
 
 
 @app.get("/api/docs")

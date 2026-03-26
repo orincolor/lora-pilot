@@ -17,6 +17,7 @@ window.initDashboard = async function () {
   const content = document.getElementById("telemetry-content");
   if (!status || !content) return;
 
+  applyShutdownDefaults();
   bindShutdownInputs();
   if (dashboardPollTimer) {
     clearInterval(dashboardPollTimer);
@@ -36,6 +37,16 @@ window.initDashboard = async function () {
     refreshDashboardTelemetry();
   }, DASHBOARD_POLL_MS);
 };
+
+function applyShutdownDefaults() {
+  const settings = window.controlPilotSettings || {};
+  const hoursEl = document.getElementById("shutdown-hours");
+  const minsEl = document.getElementById("shutdown-mins");
+  const secsEl = document.getElementById("shutdown-secs");
+  if (hoursEl) hoursEl.value = String(settings.shutdown_default_hours ?? 0);
+  if (minsEl) minsEl.value = String(settings.shutdown_default_mins ?? 1);
+  if (secsEl) secsEl.value = String(settings.shutdown_default_secs ?? 0);
+}
 
 async function refreshDashboardTelemetry() {
   const status = document.getElementById("telemetry-status");

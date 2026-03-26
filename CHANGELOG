@@ -1,3 +1,36 @@
+v2.4
+
+- ControlPilot got a real `Settings` section:
+  - moved Settings to the second sidebar item
+  - added optional ControlPilot password protection with persisted login sessions
+  - centralized HF token, Copilot GitHub token, MediaPilot password, Jupyter token/origin settings, shutdown defaults, and persisted UI preferences
+  - added persisted defaults for theme, compact sidebar, and Copilot drawer `allow all URLs`
+- ControlPilot and embedded app UX polish:
+  - MediaPilot now uses the full main content area without the extra framed embed look
+  - fixed MediaPilot light-mode toolbar and preview modal icons
+  - moved TrainPilot TOML config to persistent workspace storage, made it editable in the modal, and added save validation
+  - wired TrainPilot Kohya runs into TensorBoard on port `4444`
+  - tightened TrainPilot and Dpipe form control sizing for cleaner desktop layout
+- Copilot UX cleanup:
+  - removed Copilot from the primary menu and kept it as a global drawer
+  - improved drawer layout so output scrolls independently and the prompt stays anchored at the bottom
+  - replaced shell-based first-time setup guidance with browser-first token setup via Settings
+  - added inline auth warning with direct jump to Settings when Copilot is missing authentication
+- Service/update behavior cleanup:
+  - disabled misleading in-app updates for git-managed services (ComfyUI, Kohya, Diffusion Pipe, AI Toolkit)
+  - git-managed services are now treated as image-managed; durable updates require rebuilding the image
+  - boot-time service update reconcile now skips git services
+- Training stack hardening:
+  - fixed Kohya breakage from missing `Dinov2WithRegistersConfig` by bumping core `transformers` to `4.48.3`
+  - added Kohya startup self-repair for older images
+  - pinned Kohya and Diffusion Pipe to explicit refs
+  - isolated Diffusion Pipe into its own venv
+  - tightened Invoke/AI Toolkit shared dependency constraints
+- Dataset and training workflow fixes:
+  - fixed dataset tag detection so tagged datasets no longer show up as `No tags`
+  - sped up dataset listing and TrainPilot dataset population for larger dataset collections
+  - limited TrainPilot log scanning to actual TrainPilot/Kohya log locations instead of unrelated output folders
+
 v2.3
 
 - hardening(build): pinned Kohya and diffusion-pipe to explicit refs, moved diffusion-pipe into its own venv, and added explicit Invoke/AI Toolkit shared-stack constraints

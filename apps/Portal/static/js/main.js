@@ -2,6 +2,7 @@ const sections = ["dashboard", "services", "models", "datasets", "mediapilot", "
 const viewCache = {};
 let currentSection = null;
 let controlPilotUnlocked = false;
+window.controlPilotSettings = window.controlPilotSettings || null;
 const viewMap = {
   dashboard: { view: "/views/dashboard.html", init: () => window.initDashboard && window.initDashboard() },
   services: { view: "/views/services.html", init: () => window.initServices && window.initServices() },
@@ -42,7 +43,6 @@ function closeSidebar() {
 function setTheme(mode) {
   const root = document.documentElement;
   root.setAttribute("data-theme", mode);
-  localStorage.setItem("theme", mode);
   const dark = mode === "dark";
   if (logoImg) logoImg.src = "/logo.svg";
   if (topLogo) topLogo.src = "/logo.svg";
@@ -80,7 +80,6 @@ function updateSidebarNavTooltips() {
 function setSidebarCompact(compact) {
   if (!sidebar || !isDesktopLayout()) return;
   sidebar.classList.toggle("compact", compact);
-  localStorage.setItem("sidebarCompact", compact ? "1" : "0");
   // Refresh theme toggle label text for compact vs full.
   const mode = document.documentElement.getAttribute("data-theme") || "light";
   setTheme(mode);
@@ -88,6 +87,50 @@ function setSidebarCompact(compact) {
   if (sidebarCompactToggle) {
     sidebarCompactToggle.title = compact ? "Expand sidebar" : "Collapse sidebar";
     sidebarCompactToggle.setAttribute("aria-label", sidebarCompactToggle.title);
+  }
+}
+
+window.applyControlPilotUiSettings = function (settings = {}) {
+  if (settings && typeof settings === "object") {
+    window.controlPilotSettings = {
+      ...(window.controlPilotSettings || {}),
+      ...settings,
+    };
+  }
+  const theme = settings && settings.theme === "dark" ? "dark" : "light";
+  setTheme(theme);
+  if (typeof settings.sidebar_compact === "boolean" && isDesktopLayout()) {
+    setSidebarCompact(!!settings.sidebar_compact);
+  }
+};
+
+window.refreshControlPilotSettings = async function () {
+  const settings = await fetchJson("/api/settings");
+  window.controlPilotSettings = settings || {};
+  window.applyControlPilotUiSettings(window.controlPilotSettings);
+  if (typeof window.applyCopilotDrawerDefaults === "function") {
+    window.applyCopilotDrawerDefaults(window.controlPilotSettings);
+  }
+  return window.controlPilotSettings;
+};
+
+async function persistUiSettings() {
+  try {
+    const payload = {
+      theme: document.documentElement.getAttribute("data-theme") || "light",
+      sidebar_compact: !!sidebar?.classList.contains("compact"),
+    };
+    const res = await fetchJson("/api/settings/ui", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    window.controlPilotSettings = {
+      ...(window.controlPilotSettings || {}),
+      ...res,
+    };
+  } catch (e) {
+    // Ignore save failures; UI state already changed locally.
   }
 }
 
@@ -270,12 +313,14 @@ if (themeToggle) {
   themeToggle.addEventListener("click", () => {
     const current = document.documentElement.getAttribute("data-theme") || "light";
     setTheme(current === "dark" ? "light" : "dark");
+    persistUiSettings();
   });
 }
 if (sidebarCompactToggle) {
   sidebarCompactToggle.addEventListener("click", () => {
     const compact = sidebar?.classList.contains("compact");
     setSidebarCompact(!compact);
+    persistUiSettings();
   });
 }
 if (authLoginBtn && !authLoginBtn.dataset.bound) {
@@ -319,16 +364,11 @@ window.addEventListener("resize", updateSidebarNavTooltips);
 
 // Init theme & default section
 (async function init() {
-  // Desktop-only: restore compact state.
-  const compactSaved = localStorage.getItem("sidebarCompact");
-  if (compactSaved === "1") {
-    setSidebarCompact(true);
-  }
-  const saved = localStorage.getItem("theme");
-  setTheme(saved === "dark" ? "dark" : "light");
+  setTheme("light");
   updateSidebarNavTooltips();
   const unlocked = await initControlPilotAuth();
   if (!unlocked) return;
+  await window.refreshControlPilotSettings();
   initShutdownNotice();
   loadSection("dashboard");
 })();

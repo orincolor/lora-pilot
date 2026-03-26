@@ -229,6 +229,12 @@
             </span>
             <span class="nav-label">Services</span>
           </a>
+          <a data-section="settings">
+            <span class="nav-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 2a2 2 0 0 1 2 2v1.1a7.01 7.01 0 0 1 2.04.85l.78-.78a2 2 0 1 1 2.83 2.83l-.78.78c.36.64.65 1.32.85 2.04H20a2 2 0 1 1 0 4h-1.1a7.01 7.01 0 0 1-.85 2.04l.78.78a2 2 0 1 1-2.83 2.83l-.78-.78c-.64.36-1.32.65-2.04.85V20a2 2 0 1 1-4 0v-1.1a7.01 7.01 0 0 1-2.04-.85l-.78.78a2 2 0 1 1-2.83-2.83l.78-.78A7.01 7.01 0 0 1 5.1 13H4a2 2 0 1 1 0-4h1.1c.2-.72.49-1.4.85-2.04l-.78-.78A2 2 0 1 1 8 3.35l.78.78c.64-.36 1.32-.65 2.04-.85V4a2 2 0 0 1 2-2Zm0 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" fill="currentColor"/></svg>
+            </span>
+            <span class="nav-label">Settings</span>
+          </a>
           <a data-section="models">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none"><path d="M12 2 3 6.5 12 11l9-4.5L12 2Zm9 7.5-9 4.5-9-4.5V17l9 4.5L21 17V9.5Z" fill="currentColor"/></svg>
@@ -277,12 +283,6 @@
             </span>
             <span class="nav-label">Docs</span>
           </a>
-          <a data-section="settings">
-            <span class="nav-icon" aria-hidden="true">
-              <svg viewBox="0 0 24 24" fill="none"><path d="M12 2a2 2 0 0 1 2 2v1.1a7.01 7.01 0 0 1 2.04.85l.78-.78a2 2 0 1 1 2.83 2.83l-.78.78c.36.64.65 1.32.85 2.04H20a2 2 0 1 1 0 4h-1.1a7.01 7.01 0 0 1-.85 2.04l.78.78a2 2 0 1 1-2.83 2.83l-.78-.78c-.64.36-1.32.65-2.04.85V20a2 2 0 1 1-4 0v-1.1a7.01 7.01 0 0 1-2.04-.85l-.78.78a2 2 0 1 1-2.83-2.83l.78-.78A7.01 7.01 0 0 1 5.1 13H4a2 2 0 1 1 0-4h1.1c.2-.72.49-1.4.85-2.04l-.78-.78A2 2 0 1 1 8 3.35l.78.78c.64-.36 1.32-.65 2.04-.85V4a2 2 0 0 1 2-2Zm0 7a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" fill="currentColor"/></svg>
-            </span>
-            <span class="nav-label">Settings</span>
-          </a>
           <a data-section="support">
             <span class="nav-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24" fill="none"><path d="M12 2a8 8 0 0 0-8 8v5a3 3 0 0 0 3 3h1v-7H7a1 1 0 0 1-1-1 6 6 0 1 1 12 0 1 1 0 0 1-1 1h-1v7h1a3 3 0 0 0 3-3v-5a8 8 0 0 0-8-8Zm-1 19h2v-2h-2v2Zm-1-6a2 2 0 0 1 4 0c0 1.5-2 1.25-2 3h-2c0-2.25 2-2 2-3a0.5 0.5 0 0 0-1 0H10Z" fill="currentColor"/></svg>
@@ -324,9 +324,14 @@
       </div>
       <div class="drawer-messages">
         <div class="status" id="copilot-drawer-status">Loading…</div>
+        <div id="copilot-drawer-auth-warning" class="alert is-hidden">
+          Copilot is not authenticated. Save a GitHub token in Settings, then restart or reuse the sidecar.
+          <button id="copilot-drawer-auth-fix" class="btn secondary" type="button">Open Settings</button>
+        </div>
         <pre id="copilot-drawer-output" class="log-box mono drawer-output"></pre>
-        <div class="tip">
-          First-time setup: run <code>copilot</code> then <code>/login</code> in a terminal; config persists under <code>/workspace</code>.
+        <div class="tip drawer-tip">
+          <span>First-time setup can be done in <strong>Settings</strong> by saving a Copilot GitHub token. Terminal login is optional, not mandatory.</span>
+          <button id="copilot-drawer-settings" class="btn secondary" type="button">Open Settings</button>
         </div>
       </div>
       <div class="drawer-composer">

@@ -5,6 +5,18 @@
   .dp-card { padding:12px; }
   .dp-card h4 { margin-top:0; margin-bottom:10px; }
   .dp-log { max-height:300px; background:#0f172a; color:#e2e8f0; }
+  .dp-card .input,
+  .dp-card .select {
+    width: min(100%, 300px);
+    min-height: 44px;
+  }
+
+  @media (max-width: 760px) {
+    .dp-card .input,
+    .dp-card .select {
+      width: 100%;
+    }
+  }
 </style>
 
 <h2>Train with dpipes</h2>
