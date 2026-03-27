@@ -24,7 +24,7 @@ fi
   /opt/pilot/repos/diffusion-pipe \
   "${DIFFPIPE_REF}"
 
-create_venv /opt/venvs/diffpipe setuptools wheel
+create_venv /opt/venvs/diffpipe "setuptools<81.0" wheel
 pip_install_in_venv /opt/venvs/diffpipe \
   torch==${TORCH_VERSION} \
   torchvision==${TORCHVISION_VERSION} \
@@ -42,3 +42,4 @@ pip_install_in_venv /opt/venvs/diffpipe \
 pip_install_in_venv /opt/venvs/diffpipe \
   -c /opt/pilot/config/diffpipe-constraints.txt \
   -r /opt/pilot/repos/diffusion-pipe/requirements.txt
+pip_install_in_venv /opt/venvs/diffpipe "setuptools<81.0"

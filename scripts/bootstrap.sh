@@ -131,7 +131,7 @@ if [ -d "$MEDIAPILOT_APP_DIR" ]; then
     mediapilot_bundle_hash() {
       local dir="$1"
       (
-        cd "$dir"
+        cd "$dir" || exit 1
         find . \
           -path './.env' -prune -o \
           -path './data' -prune -o \
@@ -142,31 +142,52 @@ if [ -d "$MEDIAPILOT_APP_DIR" ]; then
           | xargs -0 sha256sum
       ) | sha256sum | awk '{print $1}'
     }
-    SRC_COMMIT_FILE="$MEDIAPILOT_SOURCE_DIR/.upstream-commit"
-    DST_COMMIT_FILE="$MEDIAPILOT_APP_DIR/.upstream-commit"
-    SRC_HASH_FILE="$MEDIAPILOT_SOURCE_DIR/.bundle-sync-sha"
-    DST_HASH_FILE="$MEDIAPILOT_APP_DIR/.bundle-sync-sha"
-    SRC_COMMIT="$(cat "$SRC_COMMIT_FILE" 2>/dev/null | tr -d '\r\n')"
-    DST_COMMIT="$(cat "$DST_COMMIT_FILE" 2>/dev/null | tr -d '\r\n')"
-    SRC_HASH="$(cat "$SRC_HASH_FILE" 2>/dev/null | tr -d '\r\n')"
-    DST_HASH="$(cat "$DST_HASH_FILE" 2>/dev/null | tr -d '\r\n')"
-    if [ -z "$SRC_HASH" ]; then
-      SRC_HASH="$(mediapilot_bundle_hash "$MEDIAPILOT_SOURCE_DIR")"
-      printf '%s\n' "$SRC_HASH" > "$SRC_HASH_FILE"
-    fi
-    if [ -z "$DST_HASH" ] && [ -d "$MEDIAPILOT_APP_DIR" ]; then
-      DST_HASH="$(mediapilot_bundle_hash "$MEDIAPILOT_APP_DIR" 2>/dev/null || true)"
-    fi
-    if { [ -n "$SRC_COMMIT" ] && [ "$SRC_COMMIT" != "$DST_COMMIT" ]; } || [ "$SRC_HASH" != "$DST_HASH" ]; then
-      echo "Syncing MediaPilot workspace copy to upstream commit ${SRC_COMMIT}"
+
+    mediapilot_sync_bundle() {
+      local src_commit_file="$MEDIAPILOT_SOURCE_DIR/.upstream-commit"
+      local dst_commit_file="$MEDIAPILOT_APP_DIR/.upstream-commit"
+      local dst_hash_file="$MEDIAPILOT_APP_DIR/.bundle-sync-sha"
+      local src_commit=""
+      local dst_commit=""
+      local src_hash=""
+      local dst_hash=""
+      local should_sync="0"
+
+      src_commit="$(tr -d '\r\n' < "$src_commit_file" 2>/dev/null || true)"
+      dst_commit="$(tr -d '\r\n' < "$dst_commit_file" 2>/dev/null || true)"
+      dst_hash="$(tr -d '\r\n' < "$dst_hash_file" 2>/dev/null || true)"
+      src_hash="$(mediapilot_bundle_hash "$MEDIAPILOT_SOURCE_DIR" 2>/dev/null || true)"
+      if [ -n "$src_hash" ] && [ -z "$dst_hash" ]; then
+        dst_hash="$(mediapilot_bundle_hash "$MEDIAPILOT_APP_DIR" 2>/dev/null || true)"
+      fi
+
+      if [ -n "$src_commit" ] && [ "$src_commit" != "$dst_commit" ]; then
+        should_sync="1"
+      fi
+      if [ -n "$src_hash" ] && [ "$src_hash" != "$dst_hash" ]; then
+        should_sync="1"
+      fi
+
+      if [ "$should_sync" != "1" ]; then
+        return 0
+      fi
+
+      echo "Syncing MediaPilot workspace copy to upstream commit ${src_commit:-unknown}"
       (
-        cd "$MEDIAPILOT_SOURCE_DIR"
+        cd "$MEDIAPILOT_SOURCE_DIR" || exit 1
         tar cf - --exclude='.env' --exclude='data' --exclude='__pycache__' .
       ) | (
-        cd "$MEDIAPILOT_APP_DIR"
+        cd "$MEDIAPILOT_APP_DIR" || exit 1
         tar xf -
       )
-      printf '%s\n' "$SRC_HASH" > "$DST_HASH_FILE"
+
+      if [ -n "$src_hash" ]; then
+        printf '%s\n' "$src_hash" > "$dst_hash_file"
+      fi
+    }
+
+    if ! mediapilot_sync_bundle; then
+      echo "MediaPilot sync failed; continuing with existing workspace copy." >&2
     fi
   fi
 

@@ -62,4 +62,5 @@ diffusers==${DIFFPIPE_DIFFUSERS_VERSION}
 transformers==${DIFFPIPE_TRANSFORMERS_VERSION}
 accelerate==${INVOKE_ACCELERATE_VERSION}
 peft==${PEFT_VERSION}
+setuptools<81.0
 EOF
