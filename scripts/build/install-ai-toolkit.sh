@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+. /opt/pilot/build/lib/python_venv.sh
+
 if [[ "${INSTALL_AI_TOOLKIT:-1}" != "1" ]]; then
   echo "Skipping AI Toolkit install (INSTALL_AI_TOOLKIT=${INSTALL_AI_TOOLKIT:-0})"
   exit 0
@@ -31,12 +33,12 @@ ln -s /workspace/models /opt/pilot/repos/ai-toolkit/models
 
 grep -v -E '^(torch|torchvision|torchaudio|numpy|pillow|Pillow|diffusers|gradio|gradio-client)([<>= ]|$)|diffusers' \
   /opt/pilot/repos/ai-toolkit/requirements.txt > /tmp/ai-toolkit-req.txt
-PIP_CONSTRAINT= /opt/venvs/invoke/bin/pip install --no-cache-dir \
+pip_install_unconstrained_in_venv /opt/venvs/invoke \
   -c /opt/pilot/config/invoke-constraints.txt \
   -r /tmp/ai-toolkit-req.txt
 rm -f /tmp/ai-toolkit-req.txt
 
-PIP_CONSTRAINT= /opt/venvs/invoke/bin/pip install --no-cache-dir \
+pip_install_unconstrained_in_venv /opt/venvs/invoke \
   -c /opt/pilot/config/invoke-constraints.txt \
   "diffusers==${AI_TOOLKIT_DIFFUSERS_VERSION}" \
   "numpy<2" \

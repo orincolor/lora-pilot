@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+. /opt/pilot/build/lib/python_venv.sh
+
 if [[ "${INSTALL_KOHYA:-1}" != "1" ]]; then
   echo "Skipping Kohya install (INSTALL_KOHYA=${INSTALL_KOHYA:-0})"
   exit 0
@@ -26,7 +28,7 @@ grep -v -E '^(tensorrt|torch|torchvision|torchaudio|xformers|triton|bitsandbytes
   "${req}" > /tmp/kohya-req.txt
 
 printf '%s\n' 'numpy<2' > /tmp/kohya-constraints.txt
-/opt/venvs/core/bin/pip install --no-cache-dir -c /tmp/kohya-constraints.txt -r /tmp/kohya-req.txt
+pip_install_in_venv /opt/venvs/core -c /tmp/kohya-constraints.txt -r /tmp/kohya-req.txt
 rm -f /tmp/kohya-req.txt /tmp/kohya-constraints.txt
 
 sitepkg="$("/opt/venvs/core/bin/python" -c 'import site; print(site.getsitepackages()[0])')"

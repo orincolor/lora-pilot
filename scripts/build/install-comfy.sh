@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+. /opt/pilot/build/lib/python_venv.sh
+
 if [[ "${INSTALL_COMFY:-1}" != "1" ]]; then
   echo "Skipping ComfyUI install (INSTALL_COMFY=${INSTALL_COMFY:-0})"
   exit 0
@@ -17,7 +19,7 @@ fi
 grep -v -E '^(torch|torchvision|torchaudio|xformers|triton|bitsandbytes|numpy|pillow|Pillow|diffusers|transformers|peft|huggingface-hub|accelerate)' \
   /opt/pilot/repos/ComfyUI/requirements.txt > /tmp/comfy-req.txt
 
-/opt/venvs/core/bin/pip install --no-cache-dir \
+pip_install_in_venv /opt/venvs/core \
   -c /opt/pilot/config/core-constraints.txt \
   -r /tmp/comfy-req.txt
 rm -f /tmp/comfy-req.txt

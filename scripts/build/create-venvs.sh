@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+. /opt/pilot/build/lib/python_venv.sh
+
 : "${JUPYTERLAB_VERSION:?JUPYTERLAB_VERSION is required}"
 : "${IPYWIDGETS_VERSION:?IPYWIDGETS_VERSION is required}"
 
-python -m venv /opt/venvs/tools
-/opt/venvs/tools/bin/pip install --upgrade pip setuptools wheel
-/opt/venvs/tools/bin/pip install --no-cache-dir \
+create_venv /opt/venvs/tools setuptools wheel
+pip_install_in_venv /opt/venvs/tools \
   "jupyterlab==${JUPYTERLAB_VERSION}" \
   "ipywidgets==${IPYWIDGETS_VERSION}"
 
-python -m venv /opt/venvs/core
-/opt/venvs/core/bin/pip install --upgrade pip "setuptools<81.0" wheel
+create_venv /opt/venvs/core "setuptools<81.0" wheel

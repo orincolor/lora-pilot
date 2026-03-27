@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+. /opt/pilot/build/lib/python_venv.sh
+
 if [[ "${INSTALL_INVOKE:-1}" != "1" ]]; then
   echo "Skipping InvokeAI install (INSTALL_INVOKE=${INSTALL_INVOKE:-0})"
   exit 0
@@ -16,24 +18,23 @@ fi
 : "${INVOKE_ACCELERATE_VERSION:?INVOKE_ACCELERATE_VERSION is required}"
 : "${PEFT_VERSION:?PEFT_VERSION is required}"
 
-python -m venv /opt/venvs/invoke
-/opt/venvs/invoke/bin/pip install --upgrade pip setuptools wheel
+create_venv /opt/venvs/invoke setuptools wheel
 
-PIP_CONSTRAINT= /opt/venvs/invoke/bin/pip install --no-cache-dir \
+pip_install_unconstrained_in_venv /opt/venvs/invoke \
   --index-url "${INVOKE_TORCH_INDEX_URL}" \
   torch==${INVOKE_TORCH_VERSION} \
   torchvision==${INVOKE_TORCHVISION_VERSION} \
   torchaudio==${INVOKE_TORCHAUDIO_VERSION}
 
-PIP_CONSTRAINT= /opt/venvs/invoke/bin/pip install \
+pip_install_unconstrained_in_venv /opt/venvs/invoke \
   -c /opt/pilot/config/invoke-constraints.txt \
   "invokeai==${INVOKEAI_VERSION}"
 
-PIP_CONSTRAINT= /opt/venvs/invoke/bin/pip install --no-cache-dir \
+pip_install_unconstrained_in_venv /opt/venvs/invoke \
   -c /opt/pilot/config/invoke-constraints.txt \
   "huggingface_hub[hf_transfer]==${INVOKE_HF_HUB_VERSION}"
 
-PIP_CONSTRAINT= /opt/venvs/invoke/bin/pip install --no-cache-dir \
+pip_install_unconstrained_in_venv /opt/venvs/invoke \
   -c /opt/pilot/config/invoke-constraints.txt \
   "transformers==${INVOKE_TRANSFORMERS_VERSION}" \
   "accelerate==${INVOKE_ACCELERATE_VERSION}" \
