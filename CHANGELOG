@@ -1,4 +1,4 @@
-v2.4
+v2.4 (March 27th 2026)
 
 - Added a real `Settings` section in ControlPilot with optional password protection, persisted sessions, and centralized management for HF, Copilot, MediaPilot, and Jupyter secrets plus shutdown and UI defaults.
 - Moved Settings directly under Dashboard, gave it a distinct sidebar icon, and kept light/dark toggle access in the primary menu.
@@ -15,7 +15,7 @@ v2.4
 - Refactored the Docker build by extracting major install/setup blocks into `scripts/build/*`, centralizing git checkout, constraints, venv bootstrap, patching, and final runtime normalization.
 - Removed `apt-get upgrade` from the image build and reduced repetitive top-level script copy instructions.
 
-v2.3
+v2.3 (March 20th 2026)
 
 - hardening(build): pinned Kohya and diffusion-pipe to explicit refs, moved diffusion-pipe into its own venv, and added explicit Invoke/AI Toolkit shared-stack constraints
 - hotfix(kohya): bumped core `transformers` to `4.48.3` and added a Kohya startup self-repair when older images are missing `Dinov2WithRegistersConfig`
