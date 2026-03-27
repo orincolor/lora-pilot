@@ -128,11 +128,36 @@ if [ -d "$MEDIAPILOT_APP_DIR" ]; then
   MEDIAPILOT_SOURCE_DIR="/opt/pilot/apps/MediaPilot"
   MEDIAPILOT_SYNC_ON_BOOT="${MEDIAPILOT_SYNC_ON_BOOT:-1}"
   if [ "$MEDIAPILOT_SYNC_ON_BOOT" = "1" ] && [ -d "$MEDIAPILOT_SOURCE_DIR" ]; then
+    mediapilot_bundle_hash() {
+      local dir="$1"
+      (
+        cd "$dir"
+        find . \
+          -path './.env' -prune -o \
+          -path './data' -prune -o \
+          -path './__pycache__' -prune -o \
+          -path './.bundle-sync-sha' -prune -o \
+          -type f -print0 \
+          | LC_ALL=C sort -z \
+          | xargs -0 sha256sum
+      ) | sha256sum | awk '{print $1}'
+    }
     SRC_COMMIT_FILE="$MEDIAPILOT_SOURCE_DIR/.upstream-commit"
     DST_COMMIT_FILE="$MEDIAPILOT_APP_DIR/.upstream-commit"
+    SRC_HASH_FILE="$MEDIAPILOT_SOURCE_DIR/.bundle-sync-sha"
+    DST_HASH_FILE="$MEDIAPILOT_APP_DIR/.bundle-sync-sha"
     SRC_COMMIT="$(cat "$SRC_COMMIT_FILE" 2>/dev/null | tr -d '\r\n')"
     DST_COMMIT="$(cat "$DST_COMMIT_FILE" 2>/dev/null | tr -d '\r\n')"
-    if [ -n "$SRC_COMMIT" ] && [ "$SRC_COMMIT" != "$DST_COMMIT" ]; then
+    SRC_HASH="$(cat "$SRC_HASH_FILE" 2>/dev/null | tr -d '\r\n')"
+    DST_HASH="$(cat "$DST_HASH_FILE" 2>/dev/null | tr -d '\r\n')"
+    if [ -z "$SRC_HASH" ]; then
+      SRC_HASH="$(mediapilot_bundle_hash "$MEDIAPILOT_SOURCE_DIR")"
+      printf '%s\n' "$SRC_HASH" > "$SRC_HASH_FILE"
+    fi
+    if [ -z "$DST_HASH" ] && [ -d "$MEDIAPILOT_APP_DIR" ]; then
+      DST_HASH="$(mediapilot_bundle_hash "$MEDIAPILOT_APP_DIR" 2>/dev/null || true)"
+    fi
+    if { [ -n "$SRC_COMMIT" ] && [ "$SRC_COMMIT" != "$DST_COMMIT" ]; } || [ "$SRC_HASH" != "$DST_HASH" ]; then
       echo "Syncing MediaPilot workspace copy to upstream commit ${SRC_COMMIT}"
       (
         cd "$MEDIAPILOT_SOURCE_DIR"
@@ -141,6 +166,7 @@ if [ -d "$MEDIAPILOT_APP_DIR" ]; then
         cd "$MEDIAPILOT_APP_DIR"
         tar xf -
       )
+      printf '%s\n' "$SRC_HASH" > "$DST_HASH_FILE"
     fi
   fi
 

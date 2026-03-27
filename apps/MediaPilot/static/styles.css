@@ -750,16 +750,13 @@ main {
   background-color: rgba(0,0,0,0.45);
   border: 1px solid #555;
   border-radius: 10px;
-  background-repeat: no-repeat;
-  background-position: 12px center;
-  background-size: 20px;
-  background-image: var(--icon-tag);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   color: #fff;
   font-size: 15px;
+  position: relative;
 }
 
 #modal-tag.icon-button:hover {
@@ -768,57 +765,90 @@ main {
 
 #modal-tag.icon-button.tagged {
   border-color: #3b8cff;
-  background-image: var(--icon-tag-active);
 }
 
-.icon-button.trash-icon {
+.modal-actions .icon-button.trash-icon,
+.modal-actions .icon-button.download-icon,
+#modal-tag.icon-button {
+  background-image: none;
+}
+
+.modal-actions .icon-button.trash-icon {
   width: auto;
   height: 42px;
   padding: 0 16px 0 38px;
   background-color: rgba(0,0,0,0.45);
   border: 1px solid #555;
   border-radius: 10px;
-  background-repeat: no-repeat;
-  background-position: 12px center;
-  background-size: 20px;
-  background-image: var(--icon-trash);
   color: #fff;
   font-size: 15px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  position: relative;
 }
 
-.icon-button.download-icon {
+.modal-actions .icon-button.download-icon {
   width: auto;
   height: 42px;
   padding: 0 16px 0 38px;
   background-color: rgba(0,0,0,0.45);
   border: 1px solid #555;
   border-radius: 10px;
-  background-repeat: no-repeat;
-  background-position: 12px center;
-  background-size: 20px;
-  background-image: var(--icon-download);
   color: #fff;
   font-size: 15px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  position: relative;
 }
 
 #modal-download.icon-button {
   width: 42px;
   padding: 0;
-  background-position: center;
 }
 
+.modal-actions .icon-button.download-icon::before,
+.modal-actions .icon-button.trash-icon::before,
+#modal-tag.icon-button::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  width: 20px;
+  height: 20px;
+  transform: translateY(-50%);
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+}
 
-.icon-button.trash-icon:hover {
+#modal-tag.icon-button::before {
+  background-image: var(--icon-tag);
+}
+
+#modal-tag.icon-button.tagged::before {
+  background-image: var(--icon-tag-active);
+}
+
+.modal-actions .icon-button.trash-icon::before {
+  background-image: var(--icon-trash);
+}
+
+.modal-actions .icon-button.download-icon::before {
+  background-image: var(--icon-download);
+}
+
+#modal-download.icon-button::before {
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.modal-actions .icon-button.trash-icon:hover {
   background-color: rgba(255,77,77,0.15);
 }
 
-.icon-button.download-icon:hover {
+.modal-actions .icon-button.download-icon:hover {
   background-color: rgba(255,255,255,0.08);
 }
 
@@ -1221,19 +1251,19 @@ header.control-bar {
 }
 
 #modal-tag.icon-button,
-.icon-button.trash-icon,
-.icon-button.download-icon {
+.modal-actions .icon-button.trash-icon,
+.modal-actions .icon-button.download-icon {
   background-color: var(--mp-surface);
   border-color: var(--mp-border);
   color: var(--mp-text);
 }
 
 #modal-tag.icon-button:hover,
-.icon-button.download-icon:hover {
+.modal-actions .icon-button.download-icon:hover {
   background-color: var(--mp-accent-soft);
 }
 
-.icon-button.trash-icon:hover {
+.modal-actions .icon-button.trash-icon:hover {
   background-color: var(--mp-danger-soft);
 }
 

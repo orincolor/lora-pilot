@@ -8,9 +8,41 @@ let lastGeneratedImage = null;
 let comfyPort = "5555";
 let comfyStatusFailures = 0;
 const COMFY_STATUS_FAILURE_THRESHOLD = 3;
+const COMFY_PREVIEW_PANEL_STORAGE_KEY = "controlpilot_comfy_preview_collapsed";
 
 function isComfyViewMounted() {
   return !!document.getElementById("comfy-iframe");
+}
+
+function isDesktopComfyLayout() {
+  return window.matchMedia("(min-width: 1025px)").matches;
+}
+
+function isPreviewPanelCollapsed() {
+  try {
+    return localStorage.getItem(COMFY_PREVIEW_PANEL_STORAGE_KEY) === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
+function setPreviewPanelCollapsed(collapsed) {
+  const shell = document.getElementById("comfy-shell");
+  const toggle = document.getElementById("comfy-preview-toggle");
+  const effectiveCollapsed = !!collapsed && isDesktopComfyLayout();
+  if (shell) shell.classList.toggle("panel-collapsed", effectiveCollapsed);
+  if (toggle) {
+    const label = effectiveCollapsed ? "Expand preview panel" : "Collapse preview panel";
+    toggle.setAttribute("aria-expanded", effectiveCollapsed ? "false" : "true");
+    toggle.setAttribute("aria-label", label);
+    toggle.title = label;
+  }
+}
+
+function persistPreviewPanelCollapsed(collapsed) {
+  try {
+    localStorage.setItem(COMFY_PREVIEW_PANEL_STORAGE_KEY, collapsed ? "1" : "0");
+  } catch (e) {}
 }
 
 function clearComfyTimers() {
@@ -42,6 +74,7 @@ window.stopComfyUI = function () {
       iframeEl.src = "about:blank";
     } catch (e) {}
   }
+  window.removeEventListener("resize", handleComfyUILayoutChange);
 };
 
 window.initComfyUI = function () {
@@ -51,14 +84,25 @@ window.initComfyUI = function () {
 
   const toggleBtn = document.getElementById("preview-toggle");
   const clearBtn = document.getElementById("clear-preview");
+  const panelToggleBtn = document.getElementById("comfy-preview-toggle");
   if (toggleBtn) toggleBtn.onclick = togglePreview;
   if (clearBtn) clearBtn.onclick = clearPreview;
+  if (panelToggleBtn) {
+    panelToggleBtn.onclick = function () {
+      const nextCollapsed = !document.getElementById("comfy-shell")?.classList.contains("panel-collapsed");
+      persistPreviewPanelCollapsed(nextCollapsed);
+      setPreviewPanelCollapsed(nextCollapsed);
+    };
+  }
 
   previewEnabled = true;
   imageCount = 0;
   lastGeneratedImage = null;
   comfyStatusFailures = 0;
   updateImageCount();
+  setPreviewPanelCollapsed(isPreviewPanelCollapsed());
+  window.removeEventListener("resize", handleComfyUILayoutChange);
+  window.addEventListener("resize", handleComfyUILayoutChange);
 
   updateConnectionStatus("connecting", "Connecting to ComfyUI...");
   checkComfyUIStatus();
@@ -69,6 +113,10 @@ window.initComfyUI = function () {
 
   setTimeout(loadLastGeneratedImage, 2000);
 };
+
+function handleComfyUILayoutChange() {
+  setPreviewPanelCollapsed(isPreviewPanelCollapsed());
+}
 
 function updateImageCount() {
   const countEl = document.getElementById("image-count");

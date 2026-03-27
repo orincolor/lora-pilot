@@ -19,8 +19,8 @@ rm -rf "${TB_ROOT}/diffpipe" "${TB_ROOT}/trainpilot"
 ln -s "${LOGDIR}" "${TB_ROOT}/diffpipe"
 ln -s "${TRAINPILOT_LOGDIR}" "${TB_ROOT}/trainpilot"
 
-source /opt/venvs/diffpipe/bin/activate
 cd "${REPO}"
+TB_CMD=(/opt/venvs/diffpipe/bin/python -m tensorboard.main)
 
 extra_args=()
 if [[ -n "${DIFFPIPE_EXTRA_ARGS:-}" ]]; then
@@ -32,7 +32,7 @@ if [[ -n "${CONFIG}" ]]; then
   if [[ "${DIFFPIPE_TENSORBOARD:-1}" == "1" ]]; then
     # Silence pkg_resources deprecation warning from tensorboard
     PYTHONWARNINGS="${PYTHONWARNINGS:-ignore:pkg_resources is deprecated as an API:UserWarning}" \
-      /opt/venvs/diffpipe/bin/tensorboard --logdir "${TB_ROOT}" --bind_all --port "${PORT}" &
+      "${TB_CMD[@]}" --logdir "${TB_ROOT}" --bind_all --port "${PORT}" &
     TB_PID=$!
     trap 'kill "${TB_PID}" 2>/dev/null || true' EXIT
   fi
@@ -40,4 +40,4 @@ if [[ -n "${CONFIG}" ]]; then
 fi
 
 echo "DIFFPIPE_CONFIG not set. Starting TensorBoard only on port ${PORT}."
-exec /opt/venvs/diffpipe/bin/tensorboard --logdir "${TB_ROOT}" --bind_all --port "${PORT}"
+exec "${TB_CMD[@]}" --logdir "${TB_ROOT}" --bind_all --port "${PORT}"

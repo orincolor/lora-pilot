@@ -1,163 +1,264 @@
 <style>
+  .comfy-shell {
+    position: relative;
+  }
+
   .comfy-container {
     display: grid;
-    grid-template-columns: 1fr 300px;
+    grid-template-columns: minmax(0, 1fr) 320px;
     gap: 16px;
-    height: calc(100vh - 120px);
+    align-items: stretch;
+    min-height: calc(100vh - 48px);
   }
-  
+
+  .comfy-shell.panel-collapsed .comfy-container {
+    grid-template-columns: minmax(0, 1fr) 56px;
+  }
+
+  .comfy-main {
+    min-width: 0;
+    min-height: calc(100vh - 48px);
+  }
+
   .comfy-iframe {
+    display: block;
     width: 100%;
-    height: 100%;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--card);
+    height: calc(100vh - 48px);
+    border: none;
+    border-radius: 0;
+    background: transparent;
   }
-  
+
   .preview-panel {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 12px;
+    min-width: 0;
+    transition: width 0.2s ease, opacity 0.2s ease;
   }
-  
+
+  .preview-panel-toggle {
+    position: absolute;
+    top: 0;
+    left: -12px;
+    z-index: 2;
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.12);
+    cursor: pointer;
+    padding: 0;
+  }
+
+  .preview-panel-toggle svg {
+    width: 16px;
+    height: 16px;
+    transition: transform 0.2s ease;
+  }
+
+  .comfy-shell.panel-collapsed .preview-panel-toggle svg {
+    transform: rotate(180deg);
+  }
+
+  .preview-panel-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  .comfy-shell.panel-collapsed .preview-panel-body {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+  }
+
+  .preview-panel-rail {
+    display: none;
+    height: 100%;
+    min-height: calc(100vh - 48px);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--card);
+    align-items: center;
+    justify-content: center;
+    padding-top: 36px;
+  }
+
+  .preview-panel-rail-label {
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+  }
+
+  .comfy-shell.panel-collapsed .preview-panel-rail {
+    display: flex;
+  }
+
   .preview-container {
     flex: 1;
     border: 1px solid var(--border);
-    border-radius: 8px;
+    border-radius: 12px;
     background: var(--card);
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 200px;
+    min-height: 220px;
     position: relative;
   }
-  
+
   .preview-image {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
-    border-radius: 4px;
+    border-radius: 6px;
   }
-  
+
   .preview-placeholder {
     color: var(--muted);
     font-size: 14px;
     text-align: center;
   }
-  
+
   .status-indicator {
     padding: 8px 12px;
-    border-radius: 6px;
+    border-radius: 8px;
     font-size: 13px;
-    font-weight: 500;
+    font-weight: 600;
   }
-  
+
   .status-connected {
     background: var(--pill-ok);
     color: #16a34a;
   }
-  
+
   .status-disconnected {
     background: var(--pill-miss);
     color: #dc2626;
   }
-  
+
   .status-connecting {
     background: var(--pill);
     color: var(--text);
   }
-  
-  .preview-info {
+
+  .preview-info,
+  .comfy-meta {
     font-size: 12px;
     color: var(--muted);
-    margin-top: 8px;
   }
 
-  .comfy-meta {
-    margin-top: 8px;
-    font-size: 13px;
-  }
-  
   @media (max-width: 1024px) {
-    .comfy-container {
+    .comfy-container,
+    .comfy-shell.panel-collapsed .comfy-container {
       grid-template-columns: 1fr;
-      height: auto;
+      min-height: auto;
     }
-    
+
+    .comfy-main,
+    .preview-panel-rail {
+      min-height: 0;
+    }
+
     .preview-panel {
       order: -1;
+      padding-top: 0;
     }
-    
+
+    .preview-panel-toggle {
+      position: static;
+      align-self: flex-end;
+      margin-bottom: 4px;
+    }
+
+    .preview-panel-rail {
+      display: none !important;
+    }
+
+    .preview-panel-body {
+      opacity: 1;
+      pointer-events: auto;
+      visibility: visible;
+    }
+
+    .comfy-shell.panel-collapsed .preview-panel-body {
+      display: none;
+    }
+
     .comfy-iframe {
-      height: 500px;
+      height: 68vh;
+      min-height: 520px;
     }
   }
 </style>
 
-<div class="page-hero">
-  <img src="/logo-comfyui.svg" alt="ComfyUI" class="page-hero-logo">
-</div>
-
-<h2 class="section-title-tight">ComfyUI with Live Preview</h2>
-
-<div class="card">
+<div id="comfy-shell" class="comfy-shell">
   <div class="comfy-container">
-    <!-- ComfyUI iframe -->
-    <div>
-      <iframe 
+    <div class="comfy-main">
+      <iframe
         id="comfy-iframe"
         class="comfy-iframe"
         src="about:blank"
         title="ComfyUI Interface">
       </iframe>
     </div>
-    
-      <!-- Live preview panel -->
-      <div class="preview-panel">
-      <div class="panel">
-        <h4 class="section-title-tight mb-12">Live Preview</h4>
-        
-        <!-- Connection status -->
-        <div id="connection-status" class="status-indicator status-connecting">
-          Connecting to ComfyUI...
-        </div>
-        
-        <!-- Preview container -->
-        <div class="preview-container" id="preview-container">
-          <div class="preview-placeholder">
-            Waiting for images...
+
+    <aside id="comfy-preview-panel" class="preview-panel" aria-label="ComfyUI live preview panel">
+      <button
+        id="comfy-preview-toggle"
+        class="preview-panel-toggle"
+        type="button"
+        title="Collapse preview panel"
+        aria-label="Collapse preview panel"
+        aria-expanded="true">
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="m15 18-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+        </svg>
+      </button>
+
+      <div class="preview-panel-rail" aria-hidden="true">
+        <span class="preview-panel-rail-label">Preview</span>
+      </div>
+
+      <div class="preview-panel-body">
+        <div class="panel">
+          <h4 class="section-title-tight mb-12">Live Preview</h4>
+          <div id="connection-status" class="status-indicator status-connecting">Connecting to ComfyUI...</div>
+          <div class="preview-container" id="preview-container">
+            <div class="preview-placeholder">Waiting for images...</div>
+          </div>
+          <div id="preview-info" class="preview-info is-hidden">
+            <div>Dimensions: <span id="preview-dimensions">-</span></div>
+            <div>Generated: <span id="preview-time">-</span></div>
           </div>
         </div>
-        
-        <!-- Preview info -->
-        <div id="preview-info" class="preview-info is-hidden">
-          <div>Dimensions: <span id="preview-dimensions">-</span></div>
-          <div>Generated: <span id="preview-time">-</span></div>
+
+        <div class="panel">
+          <h4 class="section-title-tight mb-12">Controls</h4>
+          <button class="btn primary w-full mb-8" id="preview-toggle">Pause Preview</button>
+          <button class="btn secondary w-full" id="clear-preview">Clear Preview</button>
+        </div>
+
+        <div class="panel">
+          <h4 class="section-title-tight mb-12">ComfyUI Status</h4>
+          <div id="comfy-status" class="status-indicator status-connecting">Checking status...</div>
+          <div class="comfy-meta">
+            <div>Port: <span id="comfy-port">5555</span></div>
+            <div>Images: <span id="image-count">0</span></div>
+          </div>
         </div>
       </div>
-      
-      <!-- Controls -->
-      <div class="panel">
-        <h4 class="section-title-tight mb-12">Controls</h4>
-        <button class="btn primary w-full mb-8" id="preview-toggle">
-          Pause Preview
-        </button>
-        <button class="btn secondary w-full" id="clear-preview">
-          Clear Preview
-        </button>
-      </div>
-      
-      <!-- ComfyUI status -->
-      <div class="panel">
-        <h4 class="section-title-tight mb-12">ComfyUI Status</h4>
-        <div id="comfy-status" class="status-indicator status-connecting">
-          Checking status...
-        </div>
-        <div class="comfy-meta">
-          <div>Port: <span id="comfy-port">5555</span></div>
-          <div>Images: <span id="image-count">0</span></div>
-        </div>
-      </div>
-    </div>
+    </aside>
   </div>
 </div>
