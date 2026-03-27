@@ -28,6 +28,10 @@ if [ -f "${SECRETS}" ]; then
   source "${SECRETS}" || true
 fi
 
+if [ -n "${CODE_SERVER_PASSWORD:-}" ]; then
+  export PASSWORD="${CODE_SERVER_PASSWORD}"
+fi
+
 exec /usr/bin/code-server \
   --bind-addr "0.0.0.0:${PORT}" \
   --user-data-dir "${WS}/code-server/data" \

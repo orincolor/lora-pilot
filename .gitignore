@@ -28,6 +28,8 @@ share/python-wheels/
 target/
 site/
 docs/_build/
+!scripts/build/
+!scripts/build/**
 
 # Environments
 .env
