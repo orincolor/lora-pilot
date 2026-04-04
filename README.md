@@ -31,7 +31,7 @@ Release-by-release details: [`CHANGELOG`](CHANGELOG)
 ## Supported training families
 Short version: it supports **SD1, SD2, SDXL, SD3, FLUX.1 (dev/schnell/kontext), Chroma, Lumina-Image 2.0, LTX/LTX2, HunyuanVideo, Wan2.1/Wan2.2, Cosmos, HiDream, Qwen-Image, Z-Image** and more for training, plus almost everything for inference.
 
-![Control Pilot screenshot](apps/Portal/static/lora-pilot-UI.heic)
+<img width="1465" height="830" alt="Control Pilot screenshot" src="https://github.com/user-attachments/assets/ad090402-6233-4e8c-965c-522d46321e8a"/>
 Screenshot of Control Pilot UI
 
 Everything is orchestrated by **supervisord** and writes to **/workspace**, so reboots do not nuke your progress.
