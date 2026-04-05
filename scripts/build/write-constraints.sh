@@ -25,7 +25,7 @@ cat > "${config_dir}/core-constraints.txt" <<EOF
 torch==${TORCH_VERSION}
 torchvision==${TORCHVISION_VERSION}
 torchaudio==${TORCHAUDIO_VERSION}
-xformers==${XFORMERS_VERSION}
+xformers>=${XFORMERS_VERSION}
 triton>=3.0.0,<4
 bitsandbytes==0.46.0
 numpy<2
@@ -53,7 +53,7 @@ cat > "${config_dir}/diffpipe-constraints.txt" <<EOF
 torch==${TORCH_VERSION}
 torchvision==${TORCHVISION_VERSION}
 torchaudio==${TORCHAUDIO_VERSION}
-xformers==${XFORMERS_VERSION}
+xformers>=${XFORMERS_VERSION}
 bitsandbytes==0.46.0
 numpy<2
 pillow<12

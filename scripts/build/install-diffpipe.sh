@@ -32,7 +32,7 @@ pip_install_in_venv /opt/venvs/diffpipe \
   --index-url ${TORCH_INDEX_URL}
 pip_install_in_venv /opt/venvs/diffpipe \
   -c /opt/pilot/config/diffpipe-constraints.txt \
-  xformers==${XFORMERS_VERSION} \
+  "xformers>=${XFORMERS_VERSION}" \
   bitsandbytes==0.46.0 \
   "diffusers==${DIFFPIPE_DIFFUSERS_VERSION}" \
   "transformers==${DIFFPIPE_TRANSFORMERS_VERSION}" \

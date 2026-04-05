@@ -21,7 +21,7 @@ if [[ "${INSTALL_GPU_STACK:-1}" == "1" ]]; then
 
   pip_install_in_venv /opt/venvs/core \
     -c /opt/pilot/config/core-constraints.txt \
-    "xformers==${XFORMERS_VERSION}" \
+    "xformers>=${XFORMERS_VERSION}" \
     bitsandbytes==0.46.0 \
     toml \
     accelerate \
