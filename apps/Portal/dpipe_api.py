@@ -74,37 +74,39 @@ def _resolve_diffpipe_dir() -> Path:
 
 
 def _path_is_within_root(candidate: Path, root: Path) -> bool:
-    try:
-        return os.path.commonpath([str(root), str(candidate)]) == str(root)
-    except ValueError:
-        return False
+    root_abs = os.path.realpath(str(root))
+    candidate_abs = os.path.realpath(str(candidate))
+    root_with_sep = os.path.join(root_abs, "")
+    return candidate_abs == root_abs or candidate_abs.startswith(root_with_sep)
 
 
 def _resolve_under_root(raw_value: str, *, root: Path, field: str) -> Path:
     raw = (raw_value or "").strip()
     if not raw:
         raise HTTPException(status_code=400, detail=f"{field} is required")
-    candidate = Path(os.path.expandvars(os.path.expanduser(raw)))
-    if not candidate.is_absolute():
-        candidate = root / candidate
-    resolved = candidate.resolve(strict=False)
-    root_resolved = root.resolve()
-    if not _path_is_within_root(resolved, root_resolved):
-        raise HTTPException(status_code=400, detail=f"{field} must stay within {root_resolved}")
-    return resolved
+    root_abs = os.path.realpath(str(root))
+    expanded = os.path.expandvars(os.path.expanduser(raw))
+    if os.path.isabs(expanded):
+        resolved = os.path.realpath(expanded)
+    else:
+        resolved = os.path.realpath(os.path.join(root_abs, expanded))
+    if not _path_is_within_root(Path(resolved), Path(root_abs)):
+        raise HTTPException(status_code=400, detail=f"{field} must stay within {root_abs}")
+    return Path(resolved)
 
 
 def _resolve_local_path(raw_value: str, *, field: str) -> Path:
     raw = (raw_value or "").strip()
     if not raw:
         raise HTTPException(status_code=400, detail=f"{field} is required")
-    candidate = Path(os.path.expandvars(os.path.expanduser(raw)))
-    if not candidate.is_absolute():
-        candidate = WORKSPACE / candidate
-    resolved = candidate.resolve(strict=False)
-    if not any(_path_is_within_root(resolved, root) for root in _LOCAL_PATH_ROOTS):
+    expanded = os.path.expandvars(os.path.expanduser(raw))
+    if os.path.isabs(expanded):
+        resolved = os.path.realpath(expanded)
+    else:
+        resolved = os.path.realpath(os.path.join(str(WORKSPACE), expanded))
+    if not any(_path_is_within_root(Path(resolved), root) for root in _LOCAL_PATH_ROOTS):
         raise HTTPException(status_code=400, detail=f"{field} must stay within approved directories")
-    return resolved
+    return Path(resolved)
 
 
 def _resolve_deepspeed_bin() -> Path:

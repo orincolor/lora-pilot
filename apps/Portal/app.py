@@ -499,8 +499,8 @@ def _write_secrets_env_vars(updates: dict[str, Optional[str]]) -> None:
             os.environ[key] = resolved
         else:
             os.environ.pop(key, None)
-    if lines != existing:
-        secrets_file.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+    if lines != existing and secrets_file.exists():
+        secrets_file.unlink()
 
 
 def _read_secret_env_var(key: str) -> str:
@@ -1083,11 +1083,12 @@ def _clean_name(name: str) -> str:
 
 
 def _resolve_under_root(root: Path, candidate: Path) -> Path:
-    root_resolved = root.resolve()
-    resolved = candidate.resolve(strict=False)
-    if os.path.commonpath([str(root_resolved), str(resolved)]) != str(root_resolved):
+    root_resolved = os.path.realpath(str(root))
+    resolved = os.path.realpath(str(candidate))
+    root_with_sep = os.path.join(root_resolved, "")
+    if resolved != root_resolved and not resolved.startswith(root_with_sep):
         raise HTTPException(status_code=400, detail="Invalid path")
-    return resolved
+    return Path(resolved)
 
 
 def _dataset_dir(name: str) -> Path:

@@ -111,10 +111,10 @@ def clear_logs():
 
 
 def _path_within(root: Path, candidate: Path) -> bool:
-    try:
-        return os.path.commonpath([str(root), str(candidate)]) == str(root)
-    except ValueError:
-        return False
+    root_abs = os.path.realpath(str(root))
+    candidate_abs = os.path.realpath(str(candidate))
+    root_with_sep = os.path.join(root_abs, "")
+    return candidate_abs == root_abs or candidate_abs.startswith(root_with_sep)
 
 
 def _sanitize_dataset_name(name: str) -> str:
@@ -127,25 +127,36 @@ def _resolve_under_root(root: Path, raw_path: str, *, allow_missing: bool = True
     raw = str(raw_path or "").strip()
     if not raw:
         raise ValueError("Path is required")
-    candidate = Path(raw)
-    if not candidate.is_absolute():
-        candidate = root / candidate
-    resolved = candidate.resolve(strict=not allow_missing)
+    root_abs = os.path.realpath(str(root))
+    if os.path.isabs(raw):
+        resolved = os.path.realpath(raw)
+    else:
+        resolved = os.path.realpath(os.path.join(root_abs, raw))
+    if not allow_missing and not os.path.exists(resolved):
+        raise ValueError("Path does not exist")
+    resolved = Path(resolved)
     if not _path_within(root, resolved):
         raise ValueError(f"Path must stay within {root}")
     return resolved
 
 
+def _resolve_named_dir(root: Path, raw_value: str) -> Path:
+    raw = str(raw_value or "").strip()
+    if not raw:
+        raise ValueError("Path is required")
+    return _resolve_under_root(root, _sanitize_dataset_name(Path(raw).name))
+
+
 def _dataset_dir(dataset_name: str) -> Path:
-    return _resolve_under_root(DATASET_ROOT, _sanitize_dataset_name(dataset_name))
+    return _resolve_named_dir(DATASET_ROOT, dataset_name)
 
 
 def _config_dir(dataset_name: str) -> Path:
-    return _resolve_under_root(CONFIG_ROOT, _sanitize_dataset_name(dataset_name))
+    return _resolve_named_dir(CONFIG_ROOT, dataset_name)
 
 
 def _output_dir(dataset_name: str) -> Path:
-    return _resolve_under_root(OUTPUT_ROOT, _sanitize_dataset_name(dataset_name))
+    return _resolve_named_dir(OUTPUT_ROOT, dataset_name)
 
 
 def _safe_extract_zip(zip_path: Path, dest_dir: Path) -> None:
@@ -193,8 +204,8 @@ def create_dataset_config(dataset_path: str,
             }
         ]
     }
-    dataset_root = _resolve_under_root(DATASET_ROOT, dataset_path)
-    config_root = _resolve_under_root(CONFIG_ROOT, config_dir)
+    dataset_root = _dataset_dir(dataset_path)
+    config_root = _config_dir(config_dir)
     config_root.mkdir(parents=True, exist_ok=True)
     dataset_path_full = config_root / "dataset_config.toml"
     dataset_config["directory"][0]["path"] = str(dataset_root)
@@ -311,8 +322,8 @@ def create_training_config(
         }
     }
     
-    config_root = _resolve_under_root(CONFIG_ROOT, config_dir)
-    output_root = _resolve_under_root(OUTPUT_ROOT, output_dir)
+    config_root = _config_dir(config_dir)
+    output_root = _output_dir(output_dir)
     config_root.mkdir(parents=True, exist_ok=True)
     training_path_full = config_root / "training_config.toml"
     training_config["output_dir"] = str(output_root)
@@ -552,23 +563,17 @@ def train_model(dataset_path, config_dir, output_dir, epochs, batch_size, lr, sa
                 gradient_accumulation_steps, num_repeats, resolutions, enable_ar_bucket, min_ar, max_ar, num_ar_buckets, frame_buckets, ar_buckets, gradient_clipping, warmup_steps, eval_before_first_step, eval_micro_batch_size_per_gpu, eval_gradient_accumulation_steps, checkpoint_every_n_minutes, activation_checkpointing, partition_method, save_dtype, caching_batch_size, steps_per_print, video_clip_mode, resume_from_checkpoint, only_double_blocks, enable_wandb, wandb_run_name, wandb_tracker_name, wandb_api_key
                 ):
     try:
-        dataset_root = _resolve_under_root(DATASET_ROOT, dataset_path)
-        config_root = _resolve_under_root(CONFIG_ROOT, config_dir)
-        output_root = _resolve_under_root(OUTPUT_ROOT, output_dir)
+        dataset_root = _dataset_dir(dataset_path)
+        config_root = _config_dir(config_dir)
+        output_root = _output_dir(output_dir)
 
         # Validate inputs
-        if not dataset_root.exists() or dataset_root == DATASET_ROOT:
+        if not dataset_root.exists():
             return "Error: Please provide a valid dataset path", None
         
         config_root.mkdir(parents=True, exist_ok=True)
 
-        if config_root == CONFIG_ROOT:
-            return "Error: Please provide a valid config path", None
-
         output_root.mkdir(parents=True, exist_ok=True)
-        
-        if output_root == OUTPUT_ROOT:
-            return "Error: Please provide a valid output path", None
         
         resolutions_error, resolutions_list = validate_resolutions(resolutions)
         if resolutions_error:
@@ -749,7 +754,7 @@ def upload_dataset(files, current_dataset, action, dataset_name=None):
     if not current_dataset:
         return current_dataset, "Please start a new dataset before uploading files.", []
 
-    current_dataset_path = _resolve_under_root(DATASET_ROOT, current_dataset)
+    current_dataset_path = _dataset_dir(current_dataset)
     
     if not files:
         return current_dataset, "No files uploaded.", []
@@ -993,7 +998,7 @@ def update_ui_with_config(config_values):
     )
 
 def get_latest_folder(directory):
-    directory_path = _resolve_under_root(OUTPUT_ROOT, directory)
+    directory_path = _output_dir(directory)
     if not directory_path.exists():
         return None
     # List all folders in the directory
@@ -1012,8 +1017,11 @@ def force_save(output_dir, file_name):
     
     if latest_folder_path:
         # Create the full path for the save_model file
-        output_root = _resolve_under_root(OUTPUT_ROOT, output_dir)
-        save_model_path = _resolve_under_root(output_root, str(Path(latest_folder_path) / Path(file_name).name))
+        output_root = _output_dir(output_dir)
+        save_model_path = _resolve_under_root(
+            output_root,
+            str(Path(Path(latest_folder_path).name) / Path(file_name).name),
+        )
         
         # Write an empty file
         with save_model_path.open("w") as f:
@@ -1029,23 +1037,19 @@ def show_media(dataset_dir):
         # Return an empty list if the dataset_dir is invalid
         return []
     try:
-        dataset_path = _resolve_under_root(DATASET_ROOT, dataset_dir)
+        dataset_path = _dataset_dir(dataset_dir)
     except ValueError:
         return []
     if not dataset_path.exists():
         return []
 
     # List of image and .mp4 video files
-    media_files = [
-        entry.name for entry in dataset_path.iterdir()
+    media_entries = [
+        entry for entry in dataset_path.iterdir()
         if entry.is_file() and entry.name.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.mp4'))
     ]
 
-    # Get absolute paths of the files
-    media_paths = [str((dataset_path / f).resolve()) for f in media_files[:MAX_MEDIA]]
-
-    # Check if the files exist
-    existing_media = [f for f in media_paths if Path(f).exists()]
+    existing_media = [str(entry.resolve()) for entry in media_entries[:MAX_MEDIA] if entry.exists()]
 
     return existing_media
 
@@ -1123,8 +1127,8 @@ def handle_download(dataset_path, selected_files):
     try:
         if not dataset_path:
             return None, "Invalid dataset path."
-        dataset_root = _resolve_under_root(DATASET_ROOT, dataset_path)
-        if dataset_root == DATASET_ROOT or not dataset_root.exists():
+        dataset_root = _dataset_dir(dataset_path)
+        if not dataset_root.exists():
             return None, "Invalid dataset path."
 
         dataset_name = dataset_root.name

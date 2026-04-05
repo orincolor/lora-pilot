@@ -56,11 +56,19 @@ def _ensure_trusted_folder(folder: Path) -> None:
 
 
 def _resolve_workspace_cwd(raw_cwd: Optional[str]) -> Path:
-    candidate = Path(raw_cwd).expanduser() if raw_cwd else DEFAULT_CWD
-    resolved = candidate.resolve(strict=False)
-    if os.path.commonpath([str(WORKSPACE_ROOT), str(resolved)]) != str(WORKSPACE_ROOT):
+    root_abs = os.path.realpath(str(WORKSPACE_ROOT))
+    if raw_cwd:
+        raw = str(raw_cwd).strip()
+        if os.path.isabs(raw):
+            resolved = os.path.realpath(os.path.expanduser(raw))
+        else:
+            resolved = os.path.realpath(os.path.join(root_abs, os.path.expanduser(raw)))
+    else:
+        resolved = os.path.realpath(str(DEFAULT_CWD))
+    root_with_sep = os.path.join(root_abs, "")
+    if resolved != root_abs and not resolved.startswith(root_with_sep):
         raise HTTPException(status_code=400, detail="cwd must be under /workspace")
-    return resolved
+    return Path(resolved)
 
 
 class ChatRequest(BaseModel):
