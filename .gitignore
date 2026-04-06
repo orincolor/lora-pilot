@@ -109,6 +109,6 @@ local_settings.py
 *.sage.py
 .pypirc
 
-# Plans
+# Plans / local scratch docs
 WINDOWS_WSL_INSTALLER_PLAN.md
 docs/development/dockerfile-refactor-plan.md

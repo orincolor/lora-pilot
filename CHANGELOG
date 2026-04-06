@@ -1,3 +1,9 @@
+v2.4.1 (April 6th 2026)
+
+- Cleared the GitHub CodeQL/code-scanning findings by hardening ControlPilot, MediaPilot, Portal JS, and the Copilot sidecar around path handling, process launch inputs, secret storage, exception exposure, and client-side URL/DOM handling.
+- Retired the legacy `apps/Portal/dpipe-gui.py` Gradio entrypoint and replaced it with a deprecation stub in favor of the active ControlPilot Diffusion Pipe UI/API path.
+- Upgraded the shared core GPU stack to `torch==2.7.0+cu128`, `torchvision==0.22.0+cu128`, `torchaudio==2.7.0+cu128`, switched the core wheel index to `cu128`, and relaxed xFormers to `>=0.0.30` for Blackwell testing.
+
 v2.4 (March 27th 2026)
 
 - Added a real `Settings` section in ControlPilot with optional password protection, persisted sessions, and centralized management for HF, Copilot, MediaPilot, and Jupyter secrets plus shutdown and UI defaults.
