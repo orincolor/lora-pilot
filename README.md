@@ -91,7 +91,7 @@ Expected directories (created on boot if possible):
 The `/workspace` directory is the only volume that truly matters. Models, datasets, outputs, and config all live there, so that is the one you back up.
 
 **Disk sizing (practical, not theoretical):**
-- Root/container disk: **20–30 GB** recommended 
+- Root/container disk: **30 GB** recommended 
 - `/workspace` volume: **100 GB minimum**, more if you plan to store multiple base models/checkpoints.
 
 ---
@@ -136,7 +136,8 @@ COPILOT_SIDECAR_PORT=7879
 
 ## AI Toolkit (optional)
 AI_TOOLKIT_DB_PATH=/workspace/config/ai-toolkit/aitk_db.db
-# DB is persisted under /workspace by default
+
+DB is persisted under /workspace by default
 
 ## Jupyter (optional)
 JUPYTER_ALLOW_ORIGIN_PAT=...   # extra origin regex appended to defaults (RunPod proxy + localhost + 127.0.0.1)
@@ -188,10 +189,10 @@ Both `models` and `modelsgui` will use `/workspace/config/models.manifest` when 
 
 ## Example usage
 
-# download SDXL base checkpoint into /workspace/models/checkpoints
+### download SDXL base checkpoint into /workspace/models/checkpoints
 models pull sdxl-base
 
-# list all available model nicknames
+### list all available model nicknames
 models list
 
 ## Security note (because reality exists)
@@ -199,6 +200,8 @@ models list
 - supervisord can run with an unauthenticated unix socket by default.
 - This image is meant for trusted environments like your own RunPod pod.
 - Don’t expose internal control surfaces to the public internet unless you enjoy chaos monkeys.
+
+### For security issues, please see SECURITY.md and do not report vulnerabilities publicly.
 
 ## Support
 
