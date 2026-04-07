@@ -203,6 +203,8 @@ models list
 
 ### For security issues, please see SECURITY.md and do not report vulnerabilities publicly.
 
+[![OpenSSF Baseline](https://www.bestpractices.dev/projects/12386/baseline)](https://www.bestpractices.dev/projects/12386)
+
 ## Support
 
 LoRA Pilot is not just a side project, it is actively used in real production workflows.
